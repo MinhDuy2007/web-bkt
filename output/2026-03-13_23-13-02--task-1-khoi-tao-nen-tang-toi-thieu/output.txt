@@ -1,0 +1,13 @@
+﻿[THOI GIAN TEST]
+2026-03-13 23:13:02
+
+[TRANG THAI]
+Lan test dau tien that bai o buoc script tong hop output do loi ky thuat khi xu ly process/log.
+
+[DA THUC HIEN]
+- Tao va khoi dong dev server.
+- Chup anh giao dien home-page.jpg.
+
+[HUONG XU LY]
+- Chay lai lan 2 voi quy trinh tach lenh va da thanh cong.
+- Xem ket qua chuan tai folder output lan 2.

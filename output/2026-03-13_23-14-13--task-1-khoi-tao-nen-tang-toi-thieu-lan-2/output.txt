@@ -1,0 +1,21 @@
+﻿[THOI GIAN TEST]
+2026-03-13 23:16:08
+
+[MUC TIEU TEST]
+Xac nhan bo khung task 1 khoi dong duoc local, lint/type/build pass, co bang chung giao dien.
+
+[LENH DA CHAY]
+1) npm run lint
+2) npm run typecheck
+3) npm run build
+4) npm run dev -- --hostname 127.0.0.1 --port 3000
+5) Invoke-WebRequest http://127.0.0.1:3000
+6) msedge --headless --disable-gpu --window-size=1440,900 --screenshot
+
+[KET QUA TOM TAT]
+- lint exit code: 0
+- typecheck exit code: 0
+- build exit code: 0
+- HTTP status khi dev: 200
+- Anh giao dien: home-page.jpg
+- Log chi tiet: lint.log, typecheck.log, build.log, dev-server.log, dev-server.err.log
