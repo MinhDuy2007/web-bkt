@@ -20,10 +20,5 @@ pnpm-debug.log*
 Thumbs.db
 
 /skill-agent
-/docs
-/services
-/scripts
 /bao-cao
 /task
-/tests
-/workers
