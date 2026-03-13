@@ -58,6 +58,7 @@ export type TeacherVerificationRequestRecord = {
   evidenceUrls: string[];
   status: TeacherVerificationRequestStatus;
   submittedAt: string;
+  reviewedByUserId?: string | null;
   reviewedAt?: string | null;
   adminNote?: string | null;
   createdAt: string;

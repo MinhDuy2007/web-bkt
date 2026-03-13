@@ -10,6 +10,7 @@
 - Kiem tra lint: `npm run lint`
 - Kiem tra type: `npm run typecheck`
 - Chay test auth nen tang: `npm run test:auth`
+- Chay test contract schema/policy: `npm run test:schema`
 - Kiem tra format: `npm run format:check`
 
 ## Quy tac kien truc

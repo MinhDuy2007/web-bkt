@@ -10,7 +10,8 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test:auth": "node --import tsx --test tests/unit/auth-permissions.test.ts",
-    "test": "npm run test:auth",
+    "test:schema": "node --import tsx --test tests/unit/schema-policy-contract.test.ts",
+    "test": "npm run test:auth && npm run test:schema",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

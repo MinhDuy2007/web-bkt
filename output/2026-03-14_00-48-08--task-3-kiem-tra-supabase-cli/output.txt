@@ -1,0 +1,11 @@
+﻿[THOI GIAN TEST]
+2026-03-14 00:48:08
+
+[MUC TIEU TEST]
+Kiem tra kha nang dung Supabase CLI de chay migration/policy runtime.
+
+[LENH DA CHAY]
+- supabase --version
+
+[KET QUA]
+The term 'supabase' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again.

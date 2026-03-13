@@ -1,0 +1,23 @@
+﻿[THOI GIAN TEST]
+2026-03-14 00:45:07
+
+[MUC TIEU TEST]
+Kiem tra migration schema, policy RLS, supabase repository, va bo test task 3.
+
+[LENH DA CHAY]
+1) npm run lint
+2) npm run typecheck
+3) npm run test
+4) npm run build
+5) npm run dev -- --hostname 127.0.0.1 --port 3000
+6) Invoke-WebRequest http://127.0.0.1:3000
+7) msedge --headless --screenshot
+
+[KET QUA TOM TAT]
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- build exit code: 0
+- HTTP status khi dev: 200
+- Anh giao dien: home-page.jpg
+- Log chi tiet: lint.log, typecheck.log, test.log, build.log, dev-server.log, dev-server.err.log

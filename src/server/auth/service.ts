@@ -412,6 +412,7 @@ export async function guiYeuCauXacMinhGiaoVien(
     evidenceUrls: [...payload.evidenceUrls],
     status: "pending_review",
     submittedAt: nowIso,
+    reviewedByUserId: null,
     reviewedAt: null,
     adminNote: null,
     createdAt: existing?.createdAt ?? nowIso,
