@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 
 $timestamp = Get-Date -Format 'yyyy-MM-dd_HH-mm-ss'
 $testDir = Join-Path 'output' ($timestamp + '--task-1-khoi-tao-nen-tang-toi-thieu')

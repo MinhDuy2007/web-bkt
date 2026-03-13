@@ -25,13 +25,11 @@ export default function HomePage() {
           padding: "28px",
         }}
       >
-        <p style={{ margin: 0, color: "var(--color-accent)", fontWeight: 700 }}>
-          web-bkt • Task 1
-        </p>
-        <h1 style={{ marginTop: 12, marginBottom: 8 }}>Nền tảng tối thiểu đã sẵn sàng để đi tiếp</h1>
+        <p style={{ margin: 0, color: "var(--color-accent)", fontWeight: 700 }}>web-bkt • Task 2</p>
+        <h1 style={{ marginTop: 12, marginBottom: 8 }}>Nền tảng xác thực và phân quyền đang được khóa dần</h1>
         <p style={{ marginTop: 0, color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
-          Mốc này tập trung khóa khung dự án để mở rộng theo từng module nghiệp vụ, không triển khai
-          nóng các tính năng lớn ở bước đầu.
+          Mốc này tập trung hoàn thiện biên giới client-server cho tài khoản và quyền, chưa mở rộng sang
+          thanh toán, chống gian lận, hoặc chấm điểm AI.
         </p>
 
         <div

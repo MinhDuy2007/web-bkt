@@ -1,0 +1,12 @@
+﻿[THOI GIAN TEST]
+2026-03-14 00:00:20
+
+[MUC TIEU TEST]
+Kiem tra build sau khi tinh chinh permission helper.
+
+[LENH DA CHAY]
+1) npm run build
+
+[KET QUA TOM TAT]
+- build exit code: 0
+- Log chi tiet: build.log
