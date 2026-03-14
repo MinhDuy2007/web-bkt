@@ -2,6 +2,7 @@ import type { AuthAdapterMode } from "@/types/auth";
 
 export type ServerEnv = {
   appName: string;
+  appOrigin: string | null;
   authAdapterMode: AuthAdapterMode;
   authSessionTtlMinutes: number;
   sessionTokenPepper: string;
@@ -9,6 +10,7 @@ export type ServerEnv = {
   supabaseAnonKey: string | null;
   supabaseServiceRoleKey: string | null;
   databaseUrl: string | null;
+  databaseExpectedUser: string | null;
   aiWorkerBaseUrl: string | null;
   javaSecurityServiceUrl: string | null;
 };
@@ -26,6 +28,20 @@ function docGiaTriMoiTruong(key: string): string {
 function docGiaTriTuyChon(key: string): string | null {
   const value = docGiaTriMoiTruong(key);
   return value.length > 0 ? value : null;
+}
+
+function docOriginTuyChon(key: string): string | null {
+  const rawValue = docGiaTriTuyChon(key);
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(rawValue);
+    return parsed.origin;
+  } catch {
+    throw new Error(`[env] ${key} phai la URL hop le (vi du: https://app.example.com).`);
+  }
 }
 
 function chuyenThanhSoDuong(key: string, fallbackValue: number): number {
@@ -81,6 +97,7 @@ export function layBienMoiTruongServer(): ServerEnv {
 
   const env: ServerEnv = {
     appName,
+    appOrigin: docOriginTuyChon("APP_ORIGIN"),
     authAdapterMode,
     authSessionTtlMinutes: chuyenThanhSoDuong(
       "AUTH_SESSION_TTL_MINUTES",
@@ -91,6 +108,7 @@ export function layBienMoiTruongServer(): ServerEnv {
     supabaseAnonKey: docGiaTriTuyChon("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     supabaseServiceRoleKey: docGiaTriTuyChon("SUPABASE_SERVICE_ROLE_KEY"),
     databaseUrl: docGiaTriTuyChon("DATABASE_URL"),
+    databaseExpectedUser: docGiaTriTuyChon("DATABASE_EXPECTED_USER"),
     aiWorkerBaseUrl: docGiaTriTuyChon("AI_WORKER_BASE_URL"),
     javaSecurityServiceUrl: docGiaTriTuyChon("JAVA_SECURITY_SERVICE_URL"),
   };

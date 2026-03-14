@@ -21,5 +21,8 @@
 ## Cau hinh auth hien tai
 - `AUTH_ADAPTER_MODE=mock`: dung kho du lieu gia lap an toan cho local.
 - `AUTH_ADAPTER_MODE=supabase`: user path chay qua app-service database (`DATABASE_URL`), khong dung service role truc tiep.
+- `APP_ORIGIN`: origin hop le cho browser mutation (Origin/Referer guard).
 - `SESSION_TOKEN_PEPPER`: khoa bi mat de bam `session_token` thanh `token_hash` truoc khi luu DB (bat buoc khai bao rieng khi `AUTH_ADAPTER_MODE=supabase`).
 - `SUPABASE_SERVICE_ROLE_KEY`: chi dung cho admin/internal path, khong dung cho user-facing route.
+- `DATABASE_EXPECTED_USER`: tuy chon de khoa ky vong user DB cho user-facing app path (least-privilege guard).
+- Browser login/session khong tra raw token trong JSON/header, cookie HttpOnly la transport chinh.

@@ -13,6 +13,8 @@ const authRepositoryContractFile = join(
   "repository",
   "auth-repository.ts",
 );
+const postgresPoolFile = join(process.cwd(), "src", "server", "db", "postgres-pool.ts");
+const leastPrivilegeTemplateFile = join(process.cwd(), "db", "least-privilege-user-path.sql");
 
 test("session token phai duoc bam co do dai 64 ky tu hex", () => {
   const token = "session-token-mau";
@@ -52,4 +54,20 @@ test("co tach rieng admin service-role path", () => {
   assert.match(source, /export function layAuthAdminRepository/);
   assert.match(source, /coSupabaseServiceRoleDuDieuKien/);
   assert.match(source, /taoSupabaseAdminAuthRepository/);
+});
+
+test("user-facing DB path co danh gia least-privilege role", () => {
+  const source = readFileSync(postgresPoolFile, "utf8");
+
+  assert.match(source, /DATABASE_EXPECTED_USER/);
+  assert.match(source, /kiemTraLeastPrivilege/);
+  assert.match(source, /userName === "postgres"/);
+});
+
+test("co mau SQL tach role va grant toi thieu cho app path", () => {
+  const source = readFileSync(leastPrivilegeTemplateFile, "utf8");
+
+  assert.match(source, /app_user_runtime/i);
+  assert.match(source, /grant select, insert, update, delete on table public\.app_sessions/i);
+  assert.match(source, /revoke create on schema public/i);
 });

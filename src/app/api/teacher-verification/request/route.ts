@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { AuthError } from "@/server/auth/errors";
-import { batBuocCoSessionToken, taoAuditMetadataTuRequest, taoJsonLoi } from "@/server/auth/request";
+import {
+  batBuocCoSessionCookieToken,
+  batBuocOriginHopLeChoMutation,
+  taoAuditMetadataTuRequest,
+  taoJsonLoi,
+} from "@/server/auth/request";
 import {
   chuanHoaYeuCauXacMinhGiaoVienPayload,
   guiYeuCauXacMinhGiaoVien,
@@ -8,7 +13,8 @@ import {
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const token = batBuocCoSessionToken(request);
+    batBuocOriginHopLeChoMutation(request);
+    const token = batBuocCoSessionCookieToken(request);
 
     let body: unknown;
     try {
@@ -39,4 +45,3 @@ export async function POST(request: Request): Promise<NextResponse> {
     return taoJsonLoi(error);
   }
 }
-

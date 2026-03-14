@@ -1,10 +1,26 @@
 import { NextResponse } from "next/server";
 import { AuthError } from "@/server/auth/errors";
-import { taoAuditMetadataTuRequest, taoJsonLoi } from "@/server/auth/request";
+import {
+  batBuocOriginHopLeChoMutation,
+  taoAuditMetadataTuRequest,
+  taoJsonLoi,
+} from "@/server/auth/request";
+import { layBienMoiTruongServer } from "@/server/config/env";
 import { chuanHoaDangNhapPayload, dangNhapTaiKhoan } from "@/server/auth/service";
+
+function taoSessionCongKhaiChoBrowser(session: Awaited<ReturnType<typeof dangNhapTaiKhoan>>) {
+  return {
+    issuedAt: session.issuedAt,
+    expiresAt: session.expiresAt,
+    user: session.user,
+    profile: session.profile,
+  };
+}
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
+    batBuocOriginHopLeChoMutation(request);
+
     let body: unknown;
     try {
       body = await request.json();
@@ -18,20 +34,22 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const payload = chuanHoaDangNhapPayload(body);
     const session = await dangNhapTaiKhoan(payload, taoAuditMetadataTuRequest(request));
+    const env = layBienMoiTruongServer();
+    const maxAgeSeconds = env.authSessionTtlMinutes * 60;
 
     const response = NextResponse.json({
       ok: true,
-      data: session,
+      data: taoSessionCongKhaiChoBrowser(session),
     });
 
-    response.headers.set("x-session-token", session.token);
     response.cookies.set({
       name: "session_token",
       value: session.token,
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "strict",
       secure: process.env.NODE_ENV === "production",
       path: "/",
+      maxAge: maxAgeSeconds,
     });
 
     return response;
@@ -39,4 +57,3 @@ export async function POST(request: Request): Promise<NextResponse> {
     return taoJsonLoi(error);
   }
 }
-

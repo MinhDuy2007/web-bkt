@@ -47,6 +47,17 @@
 - `AUTH_ADAPTER_MODE=supabase`: user-facing repository chạy qua app-service DB path (`DATABASE_URL`) thay vì service-role path.
 - `AUTH_ADAPTER_MODE=supabase` bắt buộc khai báo `SESSION_TOKEN_PEPPER` riêng (không dùng fallback dev).
 - `SUPABASE_SERVICE_ROLE_KEY`: chỉ dùng cho admin/internal modules.
+- `APP_ORIGIN`: origin chuẩn cho browser mutation guard (Origin/Referer check).
+
+## Session transport (browser)
+- Browser flow dùng cookie `session_token` (`HttpOnly`, `SameSite=Strict`) làm đường chính.
+- Login và session route chỉ trả dữ liệu session công khai (`issuedAt`, `expiresAt`, `user`, `profile`).
+- Không trả raw session token trong JSON body hoặc `x-session-token` response header cho browser flow.
+
+## CSRF và origin protection
+- Các browser mutation route dùng cookie auth phải kiểm tra `Origin/Referer`.
+- Nếu origin không khớp `APP_ORIGIN` (hoặc origin của request URL khi chưa cấu hình `APP_ORIGIN`) thì chặn với `403`.
+- Route đã áp dụng: login browser flow, gửi yêu cầu xác minh giáo viên.
 
 ## Mapping dữ liệu đã chốt
 - `user_accounts`
@@ -59,6 +70,12 @@
   - nhật ký hành vi nhạy cảm trong luồng xác minh giáo viên.
 - `app_sessions`
   - session ứng dụng chỉ lưu `token_hash`; không lưu token thô.
+
+## DB least-privilege cho user-facing path
+- Hiện user-facing app path dùng `DATABASE_URL` để truy cập Postgres.
+- Có thể khóa cứng kỳ vọng bằng `DATABASE_EXPECTED_USER` để phát hiện sai user DB ngay khi khởi tạo pool.
+- Nếu `DATABASE_URL` đang trỏ vào role có quyền rộng (DDL/owner/superuser) thì vẫn còn rủi ro vượt quyền khi app-layer có lỗi.
+- Mục tiêu vận hành: dùng role DB riêng cho app path, chỉ `SELECT/INSERT/UPDATE/DELETE` trên bảng cần thiết, không cấp quyền thay đổi schema.
 
 ## Nơi đặt SQL
 - `db/migrations/`: migration schema, function, trigger, hardening.
