@@ -1,0 +1,33 @@
+﻿[THOI GIAN TEST]
+2026-03-14 21:59:50
+
+[MUC TIEU TEST]
+Kiem tra migration + boundary + API + UI toi thieu cho module lop hoc task 6.
+
+[LENH DA CHAY]
+1) npm run db:prepare-migrations
+2) npm run db:push:dry
+3) npm run db:push
+4) npm run lint
+5) npm run typecheck
+6) npm run test
+7) node scripts/task6-classroom-db-proof.mjs
+8) npm run dev -- --hostname 127.0.0.1 --port 3000
+9) Invoke-WebRequest /lop-hoc va /lop-hoc/tao
+10) msedge --headless --screenshot
+
+[KET QUA TOM TAT]
+- db:prepare-migrations exit code: 0
+- db:push:dry exit code: 0
+- db:push exit code: 0
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- db runtime proof exit code: 0
+- HTTP status /lop-hoc: 200
+- HTTP status /lop-hoc/tao: 200
+- Anh giao dien: lop-hoc.jpg, lop-hoc-tao.jpg
+
+[GHI CHU]
+- Kiem tra DB runtime cho bang classes va class_members nam trong db-proof.log.
+- UI screenshot duoc chup tren local dev server.

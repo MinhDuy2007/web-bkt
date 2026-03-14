@@ -1,0 +1,215 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 20px 48px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.2), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(30, 64, 175, 0.18), transparent 36%),
+    var(--color-bg);
+}
+
+.container {
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, #050b18 6%);
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+}
+
+.header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.8vw, 2rem);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.section {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 96%, #020617 4%);
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 1.02rem;
+}
+
+.sectionText {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #0d162a;
+  color: var(--color-text-primary);
+  padding: 10px 12px;
+}
+
+.textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.button {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #132239;
+  color: var(--color-text-primary);
+  padding: 9px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  border-color: color-mix(in srgb, #14b8a6 68%, var(--color-border) 32%);
+  background: color-mix(in srgb, #0f766e 74%, #0c162a 26%);
+}
+
+.button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.inlineMessage {
+  margin: 0;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.inlineMessageSuccess {
+  border: 1px solid color-mix(in srgb, #22c55e 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #14532d 72%, var(--color-bg-elevated) 28%);
+}
+
+.inlineMessageError {
+  border: 1px solid color-mix(in srgb, #ef4444 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #7f1d1d 70%, var(--color-bg-elevated) 30%);
+}
+
+.inlineMessageWarn {
+  border: 1px solid color-mix(in srgb, #f59e0b 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #78350f 72%, var(--color-bg-elevated) 28%);
+}
+
+.stateCard {
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+  padding: 20px 14px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.cards {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 97%, #020617 3%);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.meta {
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.pill {
+  display: inline-block;
+  margin-top: 8px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pillTeacher {
+  background: color-mix(in srgb, #22c55e 24%, #1e293b 76%);
+  color: #bbf7d0;
+}
+
+.pillStudent {
+  background: color-mix(in srgb, #3b82f6 24%, #1e293b 76%);
+  color: #bfdbfe;
+}
+
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: #132239;
+  color: var(--color-text-primary);
+  padding: 9px 13px;
+  font-weight: 600;
+}
+
+.stack {
+  display: grid;
+  gap: 14px;
+}
