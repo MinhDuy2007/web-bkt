@@ -16,11 +16,18 @@ const teacherGuardMigrationFile = join(
   "migrations",
   "2026-03-14_02-30-00--teacher-request-guard-custom-auth.sql",
 );
+const adminReviewMigrationFile = join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "2026-03-14_11-40-00--admin-review-teacher-verification-flow.sql",
+);
 const policyFile = join(process.cwd(), "db", "policies", "2026-03-14_00-30-00--auth-foundation-rls.sql");
 
 const migrationSql = readFileSync(migrationFile, "utf8");
 const sessionHardeningMigrationSql = readFileSync(sessionHardeningMigrationFile, "utf8");
 const teacherGuardMigrationSql = readFileSync(teacherGuardMigrationFile, "utf8");
+const adminReviewMigrationSql = readFileSync(adminReviewMigrationFile, "utf8");
 const policySql = readFileSync(policyFile, "utf8");
 
 test("migration phai co cac bang auth nen tang", () => {
@@ -41,6 +48,18 @@ test("migration guard teacher request phai support custom auth path", () => {
   assert.match(teacherGuardMigrationSql, /auth\.uid\(\) is null or not public\.app_is_admin/i);
   assert.match(teacherGuardMigrationSql, /new\.status = 'pending_review'/i);
   assert.match(teacherGuardMigrationSql, /reviewed_by = null/i);
+});
+
+test("migration admin review phai co ham xu ly dong bo request va account", () => {
+  assert.match(adminReviewMigrationSql, /create or replace function public\.app_admin_review_teacher_verification/i);
+  assert.match(adminReviewMigrationSql, /raise exception 'ADMIN_PERMISSION_REQUIRED'/i);
+  assert.match(adminReviewMigrationSql, /raise exception 'REQUEST_ALREADY_REVIEWED'/i);
+  assert.match(adminReviewMigrationSql, /teacher_verification_status = v_next_status/i);
+  assert.match(adminReviewMigrationSql, /status = v_next_status/i);
+});
+
+test("migration admin review phai ghi actor audit tu reviewed_by khi auth.uid null", () => {
+  assert.match(adminReviewMigrationSql, /coalesce\(auth\.uid\(\), new\.reviewed_by, old\.reviewed_by, new\.user_id\)/i);
 });
 
 test("migration phai khoa ro cac trang thai va role nhay cam", () => {

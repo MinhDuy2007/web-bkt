@@ -4,6 +4,8 @@ import type {
   AuthRepository,
   CreateSessionInput,
   CreateUserInput,
+  ReviewTeacherVerificationInput,
+  ReviewTeacherVerificationResult,
   UpdateUserInput,
   UpsertProfileInput,
 } from "@/server/auth/repository/auth-repository";
@@ -72,6 +74,11 @@ type TeacherVerificationRequestRow = {
   updated_at: string;
 };
 
+type ReviewTeacherVerificationRow = {
+  request_row: TeacherVerificationRequestRow | null;
+  account_row: UserAccountRow | null;
+};
+
 function taoLoiPostgres(action: string, error: unknown): never {
   const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
   const message =
@@ -90,6 +97,13 @@ function taoLoiPostgres(action: string, error: unknown): never {
     message: `[postgres-auth] Loi khi ${action}: ${message}`,
     statusCode: 500,
   });
+}
+
+function docThongDiepLoi(error: unknown): string {
+  if (typeof error === "object" && error && "message" in error) {
+    return String(error.message);
+  }
+  return "";
 }
 
 function docGiaTriEnum<T extends readonly string[]>(
@@ -206,6 +220,60 @@ function mapTeacherVerificationRequestRow(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function mapLoiReviewTeacherVerification(error: unknown): AuthError | null {
+  const message = docThongDiepLoi(error);
+
+  if (message.includes("ADMIN_ACTOR_NOT_FOUND")) {
+    return new AuthError({
+      code: "ADMIN_ACTOR_NOT_FOUND",
+      message: "Khong tim thay tai khoan admin thuc hien review.",
+      statusCode: 404,
+    });
+  }
+
+  if (message.includes("ADMIN_PERMISSION_REQUIRED")) {
+    return new AuthError({
+      code: "ADMIN_PERMISSION_REQUIRED",
+      message: "Tai khoan hien tai khong co quyen review xac minh giao vien.",
+      statusCode: 403,
+    });
+  }
+
+  if (message.includes("REQUEST_NOT_FOUND")) {
+    return new AuthError({
+      code: "REQUEST_NOT_FOUND",
+      message: "Khong tim thay yeu cau xac minh giao vien.",
+      statusCode: 404,
+    });
+  }
+
+  if (message.includes("REQUEST_ALREADY_REVIEWED")) {
+    return new AuthError({
+      code: "REQUEST_ALREADY_REVIEWED",
+      message: "Yeu cau da duoc review truoc do, khong the review lai.",
+      statusCode: 409,
+    });
+  }
+
+  if (message.includes("TARGET_ACCOUNT_NOT_FOUND")) {
+    return new AuthError({
+      code: "TARGET_ACCOUNT_NOT_FOUND",
+      message: "Khong tim thay tai khoan can cap nhat trang thai giao vien.",
+      statusCode: 404,
+    });
+  }
+
+  if (message.includes("INVALID_REVIEW_ACTION")) {
+    return new AuthError({
+      code: "INVALID_REVIEW_ACTION",
+      message: "Hanh dong review khong hop le.",
+      statusCode: 400,
+    });
+  }
+
+  return null;
 }
 
 export function taoPostgresAuthRepository(): AuthRepository {
@@ -549,6 +617,51 @@ export function taoPostgresAuthRepository(): AuthRepository {
         );
       } catch (error) {
         taoLoiPostgres("tim yeu cau xac minh giao vien", error);
+      }
+    },
+
+    async reviewTeacherVerification(
+      input: ReviewTeacherVerificationInput,
+    ): Promise<ReviewTeacherVerificationResult> {
+      try {
+        const result = await pool.query<ReviewTeacherVerificationRow>(
+          `select request_row, account_row
+           from public.app_admin_review_teacher_verification($1, $2, $3, $4)`,
+          [input.requestId, input.actorUserId, input.action, input.adminNote ?? null],
+        );
+
+        if (result.rowCount === 0) {
+          throw new AuthError({
+            code: "POSTGRES_DATA_INVALID",
+            message: "[postgres-auth] Ham review giao vien khong tra du lieu.",
+            statusCode: 500,
+          });
+        }
+
+        const row = layHangDuyNhat(result, "review yeu cau xac minh giao vien");
+        if (!row.request_row || !row.account_row) {
+          throw new AuthError({
+            code: "POSTGRES_DATA_INVALID",
+            message: "[postgres-auth] Du lieu tra ve tu ham review khong hop le.",
+            statusCode: 500,
+          });
+        }
+
+        return {
+          request: mapTeacherVerificationRequestRow(row.request_row),
+          account: mapUserAccountRow(row.account_row),
+        };
+      } catch (error) {
+        if (error instanceof AuthError) {
+          throw error;
+        }
+
+        const mappedError = mapLoiReviewTeacherVerification(error);
+        if (mappedError) {
+          throw mappedError;
+        }
+
+        taoLoiPostgres("review yeu cau xac minh giao vien", error);
       }
     },
   };

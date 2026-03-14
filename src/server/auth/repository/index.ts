@@ -1,4 +1,5 @@
 import type { AuthRepository } from "@/server/auth/repository/auth-repository";
+export type { ReviewTeacherVerificationAction } from "@/server/auth/repository/auth-repository";
 import { AuthError } from "@/server/auth/errors";
 import { layMockAuthRepository } from "@/server/auth/repository/mock-auth-repository";
 import { taoPostgresAuthRepository } from "@/server/auth/repository/postgres-auth-repository";

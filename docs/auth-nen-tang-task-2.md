@@ -80,3 +80,29 @@
 ## Nơi đặt SQL
 - `db/migrations/`: migration schema, function, trigger, hardening.
 - `db/policies/`: policy RLS.
+
+## Luồng admin review (Task 4)
+- Route admin-only:
+  - `POST /api/admin/teacher-verification/:requestId/review`
+- Payload:
+  - `action`: `approve | reject`
+  - `adminNote`: tùy chọn
+- Guard bắt buộc:
+  - Cookie session hợp lệ (`session_token`)
+  - Origin/Referer check cho browser mutation
+  - `batBuocQuyenAdmin` ở server-side
+- Khi `approve`:
+  - `teacher_verification_requests.status = approved`
+  - set `reviewed_by`, `reviewed_at`, `admin_note`
+  - `user_accounts.teacher_verification_status = approved`
+  - đảm bảo role `teacher` được phản ánh trên account
+- Khi `reject`:
+  - `teacher_verification_requests.status = rejected`
+  - set `reviewed_by`, `reviewed_at`, `admin_note`
+  - `user_accounts.teacher_verification_status = rejected`
+  - loại role `teacher` khỏi account nếu có
+- Chặn review lại:
+  - chỉ cho phép review khi request đang `pending_review`
+- Audit log:
+  - trigger ghi `teacher_verification_audit_logs`
+  - actor ưu tiên `auth.uid()`, fallback sang `new.reviewed_by` để đúng actor trong custom auth path.

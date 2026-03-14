@@ -69,6 +69,19 @@ export function batBuocQuyenNguoiDungCoBan(session: AuthSession | null): AuthSes
   return verifiedSession;
 }
 
+export function batBuocQuyenAdmin(session: AuthSession | null): AuthSession {
+  const verifiedSession = batBuocDangNhap(session);
+  if (!coPhaiAdmin(verifiedSession.user)) {
+    throw new AuthError({
+      code: "ADMIN_PERMISSION_REQUIRED",
+      message: "Tai khoan hien tai khong co quyen quan tri.",
+      statusCode: 403,
+    });
+  }
+
+  return verifiedSession;
+}
+
 export function batBuocQuyenTaoLop(session: AuthSession | null): AuthSession {
   const verifiedSession = batBuocDangNhap(session);
   if (!coQuyenTaoLop(verifiedSession.user)) {

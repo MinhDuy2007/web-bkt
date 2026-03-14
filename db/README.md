@@ -24,6 +24,9 @@ Các script `db:push:dry`, `db:push`, `db:push:staging` đã bao gồm bước c
 
 - Hướng A đang dùng custom auth runtime ở application layer.
 - RLS là lớp phòng thủ bổ sung tại DB-layer, không phải lớp runtime authorization chính cho user path ở giai đoạn hiện tại.
+- Admin review teacher verification dùng hàm DB transaction:
+  - `public.app_admin_review_teacher_verification(...)`
+  - Mục tiêu: cập nhật đồng bộ `teacher_verification_requests` và `user_accounts` trong cùng một thao tác.
 
 ## Least-privilege cho user-facing DB path
 

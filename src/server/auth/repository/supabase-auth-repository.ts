@@ -4,6 +4,8 @@ import type {
   AuthRepository,
   CreateSessionInput,
   CreateUserInput,
+  ReviewTeacherVerificationInput,
+  ReviewTeacherVerificationResult,
   UpdateUserInput,
   UpsertProfileInput,
 } from "@/server/auth/repository/auth-repository";
@@ -73,6 +75,11 @@ type TeacherVerificationRequestRow = {
   updated_at: string;
 };
 
+type ReviewTeacherVerificationRow = {
+  request_row: TeacherVerificationRequestRow | null;
+  account_row: UserAccountRow | null;
+};
+
 function taoLoiSupabase(action: string, error: PostgrestError): never {
   if (error.code === "23505") {
     throw new AuthError({
@@ -87,6 +94,60 @@ function taoLoiSupabase(action: string, error: PostgrestError): never {
     message: `[supabase-auth] Loi khi ${action}: ${error.message}`,
     statusCode: 500,
   });
+}
+
+function mapLoiReviewTeacherVerification(error: PostgrestError): AuthError | null {
+  const message = error.message ?? "";
+
+  if (message.includes("ADMIN_ACTOR_NOT_FOUND")) {
+    return new AuthError({
+      code: "ADMIN_ACTOR_NOT_FOUND",
+      message: "Khong tim thay tai khoan admin thuc hien review.",
+      statusCode: 404,
+    });
+  }
+
+  if (message.includes("ADMIN_PERMISSION_REQUIRED")) {
+    return new AuthError({
+      code: "ADMIN_PERMISSION_REQUIRED",
+      message: "Tai khoan hien tai khong co quyen review xac minh giao vien.",
+      statusCode: 403,
+    });
+  }
+
+  if (message.includes("REQUEST_NOT_FOUND")) {
+    return new AuthError({
+      code: "REQUEST_NOT_FOUND",
+      message: "Khong tim thay yeu cau xac minh giao vien.",
+      statusCode: 404,
+    });
+  }
+
+  if (message.includes("REQUEST_ALREADY_REVIEWED")) {
+    return new AuthError({
+      code: "REQUEST_ALREADY_REVIEWED",
+      message: "Yeu cau da duoc review truoc do, khong the review lai.",
+      statusCode: 409,
+    });
+  }
+
+  if (message.includes("TARGET_ACCOUNT_NOT_FOUND")) {
+    return new AuthError({
+      code: "TARGET_ACCOUNT_NOT_FOUND",
+      message: "Khong tim thay tai khoan can cap nhat trang thai giao vien.",
+      statusCode: 404,
+    });
+  }
+
+  if (message.includes("INVALID_REVIEW_ACTION")) {
+    return new AuthError({
+      code: "INVALID_REVIEW_ACTION",
+      message: "Hanh dong review khong hop le.",
+      statusCode: 400,
+    });
+  }
+
+  return null;
 }
 
 function docGiaTriEnum<T extends readonly string[]>(
@@ -422,6 +483,47 @@ export function taoSupabaseAdminAuthRepository(): AuthRepository {
       }
 
       return data ? mapTeacherVerificationRequestRow(data) : null;
+    },
+
+    async reviewTeacherVerification(
+      input: ReviewTeacherVerificationInput,
+    ): Promise<ReviewTeacherVerificationResult> {
+      const { data, error } = await client.rpc("app_admin_review_teacher_verification", {
+        p_request_id: input.requestId,
+        p_actor_user_id: input.actorUserId,
+        p_action: input.action,
+        p_admin_note: input.adminNote ?? null,
+      });
+
+      if (error) {
+        const mappedError = mapLoiReviewTeacherVerification(error);
+        if (mappedError) {
+          throw mappedError;
+        }
+        taoLoiSupabase("review yeu cau xac minh giao vien", error);
+      }
+
+      if (!Array.isArray(data) || data.length !== 1) {
+        throw new AuthError({
+          code: "SUPABASE_DATA_INVALID",
+          message: "[supabase-auth] Ham review giao vien khong tra du lieu hop le.",
+          statusCode: 500,
+        });
+      }
+
+      const row = data[0] as ReviewTeacherVerificationRow;
+      if (!row.request_row || !row.account_row) {
+        throw new AuthError({
+          code: "SUPABASE_DATA_INVALID",
+          message: "[supabase-auth] Du lieu review giao vien tra ve bi thieu truong bat buoc.",
+          statusCode: 500,
+        });
+      }
+
+      return {
+        request: mapTeacherVerificationRequestRow(row.request_row),
+        account: mapUserAccountRow(row.account_row),
+      };
     },
   };
 }

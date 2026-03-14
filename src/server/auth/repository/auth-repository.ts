@@ -1,6 +1,7 @@
 import type {
   AccountRecord,
   AccountStatus,
+  AuditMetadata,
   AppRole,
   IdentityStatus,
   SessionRecord,
@@ -39,6 +40,21 @@ export type CreateSessionInput = {
   createdAt: string;
 };
 
+export type ReviewTeacherVerificationAction = "approve" | "reject";
+
+export type ReviewTeacherVerificationInput = {
+  requestId: string;
+  actorUserId: string;
+  action: ReviewTeacherVerificationAction;
+  adminNote?: string | null;
+  auditMetadata?: AuditMetadata;
+};
+
+export type ReviewTeacherVerificationResult = {
+  request: TeacherVerificationRequestRecord;
+  account: AccountRecord;
+};
+
 export interface AuthRepository {
   createUser(input: CreateUserInput): Promise<AccountRecord>;
   findUserByEmail(email: string): Promise<AccountRecord | null>;
@@ -56,4 +72,7 @@ export interface AuthRepository {
     input: TeacherVerificationRequestRecord,
   ): Promise<TeacherVerificationRequestRecord>;
   findTeacherVerificationByUserId(userId: string): Promise<TeacherVerificationRequestRecord | null>;
+  reviewTeacherVerification(
+    input: ReviewTeacherVerificationInput,
+  ): Promise<ReviewTeacherVerificationResult>;
 }

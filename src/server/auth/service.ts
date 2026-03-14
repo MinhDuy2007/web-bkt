@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { AuthError } from "@/server/auth/errors";
 import { bamMatKhau, xacThucMatKhau } from "@/server/auth/password";
-import { batBuocQuyenNguoiDungCoBan } from "@/server/auth/permissions";
-import { layAuthRepository } from "@/server/auth/repository";
+import { batBuocQuyenAdmin, batBuocQuyenNguoiDungCoBan } from "@/server/auth/permissions";
+import {
+  layAuthAdminRepository,
+  layAuthRepository,
+  type ReviewTeacherVerificationAction,
+} from "@/server/auth/repository";
 import { bamSessionToken, taoSessionTokenGoc } from "@/server/auth/session-token";
 import { layBienMoiTruongServer } from "@/server/config/env";
 import type {
@@ -40,9 +44,19 @@ export type YeuCauXacMinhGiaoVienPayload = {
   evidenceUrls: string[];
 };
 
+export type DuyetYeuCauXacMinhGiaoVienPayload = {
+  action: ReviewTeacherVerificationAction;
+  adminNote?: string | null;
+};
+
 type NguoiDungCongKhai = {
   user: Omit<AccountRecord, "passwordHash">;
   profile: UserProfileRecord | null;
+};
+
+export type KetQuaDuyetYeuCauXacMinhGiaoVien = {
+  request: TeacherVerificationRequestRecord;
+  account: Omit<AccountRecord, "passwordHash">;
 };
 
 function docObject(payload: unknown): Record<string, unknown> {
@@ -143,6 +157,62 @@ function docDanhSachChuoi(rawValue: unknown, fieldName: string): string[] {
   return [...new Set(normalized)];
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function docUuid(rawValue: unknown, fieldName: string): string {
+  const normalized = docChuoi(rawValue, fieldName, 36);
+  if (!UUID_PATTERN.test(normalized)) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai la UUID hop le.`,
+      statusCode: 400,
+    });
+  }
+
+  return normalized.toLowerCase();
+}
+
+function docActionReview(rawValue: unknown): ReviewTeacherVerificationAction {
+  if (rawValue === "approve" || rawValue === "reject") {
+    return rawValue;
+  }
+
+  throw new AuthError({
+    code: "INVALID_INPUT",
+    message: "Truong action chi chap nhan gia tri approve hoac reject.",
+    statusCode: 400,
+  });
+}
+
+function docAdminNoteTuyChon(rawValue: unknown): string | null {
+  if (rawValue === null || rawValue === undefined) {
+    return null;
+  }
+
+  if (typeof rawValue !== "string") {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: "Truong adminNote phai la chuoi neu duoc cung cap.",
+      statusCode: 400,
+    });
+  }
+
+  const normalized = rawValue.trim();
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  if (normalized.length > 1000) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: "Truong adminNote vuot qua do dai cho phep.",
+      statusCode: 400,
+    });
+  }
+
+  return normalized;
+}
+
 function taoDisplayNameMacDinh(email: string): string {
   return email.split("@")[0] || "nguoi-dung-moi";
 }
@@ -183,6 +253,15 @@ function chuyenSession(
 
 function taoAuditMetadataPlaceholder(audit?: AuditMetadata): void {
   void audit;
+}
+
+function layRepositoryChoAdminReview() {
+  const env = layBienMoiTruongServer();
+  if (env.authAdapterMode === "mock") {
+    return layAuthRepository();
+  }
+
+  return layAuthAdminRepository();
 }
 
 export function chuanHoaDangKyPayload(payload: unknown): DangKyPayload {
@@ -231,6 +310,21 @@ export function chuanHoaYeuCauXacMinhGiaoVienPayload(
     evidenceUrls: Array.isArray(data.evidenceUrls)
       ? data.evidenceUrls.filter((item): item is string => typeof item === "string")
       : [],
+  };
+}
+
+export function chuanHoaRequestId(payload: unknown): string {
+  return docUuid(payload, "requestId");
+}
+
+export function chuanHoaDuyetYeuCauXacMinhGiaoVienPayload(
+  payload: unknown,
+): DuyetYeuCauXacMinhGiaoVienPayload {
+  const data = docObject(payload);
+
+  return {
+    action: docActionReview(data.action),
+    adminNote: docAdminNoteTuyChon(data.adminNote),
   };
 }
 
@@ -425,4 +519,29 @@ export async function guiYeuCauXacMinhGiaoVien(
   });
 
   return repository.upsertTeacherVerificationRequest(upsertedRequest);
+}
+
+export async function duyetYeuCauXacMinhGiaoVienBoiAdmin(
+  token: string,
+  requestId: string,
+  payload: DuyetYeuCauXacMinhGiaoVienPayload,
+  audit?: AuditMetadata,
+): Promise<KetQuaDuyetYeuCauXacMinhGiaoVien> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenAdmin(session);
+  const normalizedRequestId = chuanHoaRequestId(requestId);
+  const repository = layRepositoryChoAdminReview();
+
+  const reviewed = await repository.reviewTeacherVerification({
+    requestId: normalizedRequestId,
+    actorUserId: verifiedSession.user.id,
+    action: payload.action,
+    adminNote: payload.adminNote ?? null,
+    auditMetadata: audit,
+  });
+
+  return {
+    request: reviewed.request,
+    account: loaiBoPasswordHash(reviewed.account),
+  };
 }

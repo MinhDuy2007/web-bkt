@@ -1,0 +1,166 @@
+﻿[Task 4] Bat dau ghi log test: 2026-03-14 19:52:18
+
+$ npm run lint
+
+> web-bkt@0.1.0 lint
+> eslint . --max-warnings=0
+
+
+$ npm run typecheck
+
+> web-bkt@0.1.0 typecheck
+> tsc --noEmit
+
+
+$ npm run test
+
+> web-bkt@0.1.0 test
+> npm run test:auth && npm run test:schema && npm run test:runtime-security && npm run test:admin-review
+
+
+> web-bkt@0.1.0 test:auth
+> node --import tsx --test tests/unit/auth-permissions.test.ts
+
+✔ user thuong khong duoc tao lop (2.2143ms)
+✔ user thuong khong duoc tham gia ngan hang de (0.2384ms)
+✔ teacher pending_review chua duoc quyen giao vien day du (0.1873ms)
+✔ teacher approved duoc pass guard tao lop va ngan hang de (0.1147ms)
+✔ du lieu role tu client khong du de nang quyen khi backend khong chap nhan (41.1546ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 721.9511
+
+> web-bkt@0.1.0 test:schema
+> node --import tsx --test tests/unit/schema-policy-contract.test.ts
+
+✔ migration phai co cac bang auth nen tang (1.3721ms)
+✔ migration hardening phai ep app_sessions luu token_hash (0.6303ms)
+✔ migration guard teacher request phai support custom auth path (0.6053ms)
+✔ migration admin review phai co ham xu ly dong bo request va account (0.5704ms)
+✔ migration admin review phai ghi actor audit tu reviewed_by khi auth.uid null (0.3842ms)
+✔ migration phai khoa ro cac trang thai va role nhay cam (0.3851ms)
+✔ policy khong duoc mo rong kieu using true (0.3601ms)
+✔ policy teacher verification phai chan user tu set duyet (0.4444ms)
+✔ policy user accounts phai khoa update cho admin (0.3107ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 299.6374
+
+> web-bkt@0.1.0 test:runtime-security
+> node --import tsx --test tests/unit/runtime-security-boundary.test.ts tests/unit/session-transport-csrf.test.ts
+
+✔ session token phai duoc bam co do dai 64 ky tu hex (2.1271ms)
+✔ session token khac nhau phai ra hash khac nhau (0.2826ms)
+✔ contract repository phai dung token_hash thay vi token tho (0.5849ms)
+✔ user-facing repository path khong duoc dung service role truc tiep (0.4178ms)
+✔ co tach rieng admin service-role path (0.3604ms)
+✔ user-facing DB path co danh gia least-privilege role (0.297ms)
+✔ co mau SQL tach role va grant toi thieu cho app path (0.3865ms)
+✔ browser login flow khong tra raw session token trong body va header (89.1938ms)
+✔ session lookup van hoat dong dung qua cookie browser (77.6725ms)
+✔ mutation route dung cookie auth bi chan neu origin khong hop le (76.3947ms)
+✔ mutation route pass khi origin hop le va cookie hop le (78.064ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 955.1422
+
+> web-bkt@0.1.0 test:admin-review
+> node --import tsx --test tests/unit/admin-teacher-review.test.ts
+
+✔ non-admin khong duoc review yeu cau xac minh giao vien (162.3208ms)
+✔ admin approve cap nhat request, account va ghi audit log (151.5367ms)
+✔ admin reject cap nhat dung trang thai va chan review lai (151.8088ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1036.9711
+
+$ npm run db:push:dry
+
+> web-bkt@0.1.0 db:push:dry
+> npm run db:prepare-migrations && npx supabase db push --dry-run
+
+
+> web-bkt@0.1.0 db:prepare-migrations
+> node scripts/prepare-supabase-migrations.mjs
+
+[db:prepare-migrations] Tong file nguon: 5
+[db:prepare-migrations] Da ghi/cap nhat: 0
+[db:prepare-migrations] Da xoa file generated cu: 0
+[db:prepare-migrations] Thu muc dich: supabase/migrations
+Initialising login role...
+DRY RUN: migrations will *not* be pushed to the database.
+Connecting to remote database...
+Remote database is up to date.
+
+$ npm run db:push
+
+> web-bkt@0.1.0 db:push
+> npm run db:prepare-migrations && npx supabase db push
+
+
+> web-bkt@0.1.0 db:prepare-migrations
+> node scripts/prepare-supabase-migrations.mjs
+
+[db:prepare-migrations] Tong file nguon: 5
+[db:prepare-migrations] Da ghi/cap nhat: 0
+[db:prepare-migrations] Da xoa file generated cu: 0
+[db:prepare-migrations] Thu muc dich: supabase/migrations
+Initialising login role...
+Connecting to remote database...
+Remote database is up to date.
+
+[Task 4] Hoan tat ghi log: 2026-03-14 19:52:44
+
+$ node --input-type=module scripts-inline-db-proof
+{
+  "functionExists": true,
+  "tables": [
+    "app_sessions",
+    "teacher_verification_audit_logs",
+    "teacher_verification_requests",
+    "user_accounts",
+    "user_profiles"
+  ]
+}
+
+$ npx supabase migration list
+Initialising login role...
+failed to initialise login role: Post "https://api.supabase.com/v1/projects/dkooyhfvqfplblfgjwtz/cli/login-role": failed to dial native: dial tcp: lookup api.supabase.com: no such host
+Connect to your database by setting the env var: SUPABASE_DB_PASSWORD
+
+$ node --input-type=module scripts-inline-migration-proof
+D:\web-bkt\node_modules\pg-pool\index.js:45
+    Error.captureStackTrace(err)
+          ^
+System.Management.Automation.RemoteException
+Error: getaddrinfo ENOTFOUND aws-1-ap-south-1.pooler.supabase.com
+    at D:\web-bkt\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///D:/web-bkt/[eval1]:29:21 {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'aws-1-ap-south-1.pooler.supabase.com'
+}
+System.Management.Automation.RemoteException
+Node.js v24.13.0
