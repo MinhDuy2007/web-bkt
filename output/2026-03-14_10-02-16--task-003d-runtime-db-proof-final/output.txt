@@ -1,0 +1,227 @@
+﻿=== Runtime audit ===
+Started: 2026-03-14 10:02:16
+{
+  "runtimeEnv": [
+    {
+      "key": "APP_ORIGIN",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "http://localhost:3000"
+    },
+    {
+      "key": "AUTH_ADAPTER_MODE",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "supabase"
+    },
+    {
+      "key": "SESSION_TOKEN_PEPPER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "no****)\""
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "https://****.supabase.co"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****kE"
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****lQ"
+    },
+    {
+      "key": "DATABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgresql://postgres.dkooyhfvqfplblfgjwtz:***@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+    },
+    {
+      "key": "DATABASE_EXPECTED_USER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgres.dkooyhfvqfplblfgjwtz"
+    }
+  ],
+  "databaseUrlParts": {
+    "host": "aws-1-ap-south-1.pooler.supabase.com",
+    "port": 5432,
+    "username": "postgres.dkooyhfvqfplblfgjwtz",
+    "database": "postgres"
+  },
+  "databaseUserCheck": {
+    "parsedDatabaseUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "databaseExpectedUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "matchesExpectedUser": true,
+    "highRiskByUsername": true,
+    "currentUser": "postgres",
+    "sessionUser": "postgres",
+    "currentDatabase": "postgres",
+    "highRiskByCurrentUser": true,
+    "roleMeta": {
+      "rolname": "postgres",
+      "rolsuper": false,
+      "rolcreaterole": true,
+      "rolcreatedb": true,
+      "rolreplication": true,
+      "rolbypassrls": true
+    },
+    "canCreateSchema": true,
+    "grants": [],
+    "publicTables": [],
+    "tablePrivilegeMatrix": [
+      {
+        "table_name": "user_accounts",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "user_profiles",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "app_sessions",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      }
+    ],
+    "tablePrivilegeError": null,
+    "connectionError": null
+  }
+}
+ExitCode: 0
+
+=== Supabase db push ===
+Started: 2026-03-14 10:02:38
+node.exe : Initialising login role...
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Initialising login role...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Connecting to remote database...
+Remote database is up to date.
+ExitCode: 0
+
+=== npm run lint ===
+Started: 2026-03-14 10:02:44
+
+> web-bkt@0.1.0 lint
+> eslint . --max-warnings=0
+ExitCode: 0
+
+=== npm run typecheck ===
+Started: 2026-03-14 10:02:48
+
+> web-bkt@0.1.0 typecheck
+> tsc --noEmit
+ExitCode: 0
+
+=== npm run test ===
+Started: 2026-03-14 10:02:50
+
+> web-bkt@0.1.0 test
+> npm run test:auth && npm run test:schema && npm run test:runtime-security
+
+
+> web-bkt@0.1.0 test:auth
+> node --import tsx --test tests/unit/auth-permissions.test.ts
+
+✔ user thuong khong duoc tao lop (2.4508ms)
+✔ user thuong khong duoc tham gia ngan hang de (0.5193ms)
+✔ teacher pending_review chua duoc quyen giao vien day du (0.1903ms)
+✔ teacher approved duoc pass guard tao lop va ngan hang de (0.167ms)
+✔ du lieu role tu client khong du de nang quyen khi backend khong chap nhan (42.4467ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 609.5501
+
+> web-bkt@0.1.0 test:schema
+> node --import tsx --test tests/unit/schema-policy-contract.test.ts
+
+✔ migration phai co cac bang auth nen tang (1.2116ms)
+✔ migration hardening phai ep app_sessions luu token_hash (0.2906ms)
+✔ migration guard teacher request phai support custom auth path (0.217ms)
+✔ migration phai khoa ro cac trang thai va role nhay cam (0.2662ms)
+✔ policy khong duoc mo rong kieu using true (0.331ms)
+✔ policy teacher verification phai chan user tu set duyet (0.3593ms)
+✔ policy user accounts phai khoa update cho admin (0.1822ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 292.102
+
+> web-bkt@0.1.0 test:runtime-security
+> node --import tsx --test tests/unit/runtime-security-boundary.test.ts tests/unit/session-transport-csrf.test.ts
+
+✔ session token phai duoc bam co do dai 64 ky tu hex (2.1126ms)
+✔ session token khac nhau phai ra hash khac nhau (0.3309ms)
+✔ contract repository phai dung token_hash thay vi token tho (0.5514ms)
+✔ user-facing repository path khong duoc dung service role truc tiep (0.4063ms)
+✔ co tach rieng admin service-role path (0.3439ms)
+✔ user-facing DB path co danh gia least-privilege role (0.396ms)
+✔ co mau SQL tach role va grant toi thieu cho app path (0.5308ms)
+✔ browser login flow khong tra raw session token trong body va header (86.1021ms)
+✔ session lookup van hoat dong dung qua cookie browser (77.5099ms)
+✔ mutation route dung cookie auth bi chan neu origin khong hop le (75.8507ms)
+✔ mutation route pass khi origin hop le va cookie hop le (77.8241ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 961.1319
+ExitCode: 0
+
+=== Summary ===
+runtime-audit: 0
+supabase-db-push: 0
+lint: 0
+typecheck: 0
+test: 0

@@ -14,7 +14,11 @@
     "test:runtime-security": "node --import tsx --test tests/unit/runtime-security-boundary.test.ts tests/unit/session-transport-csrf.test.ts",
     "test": "npm run test:auth && npm run test:schema && npm run test:runtime-security",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:prepare-migrations": "node scripts/prepare-supabase-migrations.mjs",
+    "db:push:dry": "npm run db:prepare-migrations && npx supabase db push --dry-run",
+    "db:push": "npm run db:prepare-migrations && npx supabase db push",
+    "db:push:staging": "npm run db:prepare-migrations && npx supabase db push"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.99.1",
@@ -32,6 +36,7 @@
     "eslint-config-next": "16.1.6",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.8.1",
+    "supabase": "^2.78.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3"
   },

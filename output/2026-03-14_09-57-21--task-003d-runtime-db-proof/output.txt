@@ -1,0 +1,343 @@
+﻿[Task 003D Runtime DB Proof + Migration + Test]
+Timestamp: 2026-03-14 09:57:21
+WorkingDir: D:\web-bkt
+
+
+=== RUN: node scripts/task003c-runtime-audit.mjs (pre-push) ===
+{
+  "runtimeEnv": [
+    {
+      "key": "APP_ORIGIN",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "http://localhost:3000"
+    },
+    {
+      "key": "AUTH_ADAPTER_MODE",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "supabase"
+    },
+    {
+      "key": "SESSION_TOKEN_PEPPER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "no****)\""
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "https://****.supabase.co"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****kE"
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****lQ"
+    },
+    {
+      "key": "DATABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgresql://postgres.dkooyhfvqfplblfgjwtz:***@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+    },
+    {
+      "key": "DATABASE_EXPECTED_USER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgres.dkooyhfvqfplblfgjwtz"
+    }
+  ],
+  "databaseUrlParts": {
+    "host": "aws-1-ap-south-1.pooler.supabase.com",
+    "port": 5432,
+    "username": "postgres.dkooyhfvqfplblfgjwtz",
+    "database": "postgres"
+  },
+  "databaseUserCheck": {
+    "parsedDatabaseUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "databaseExpectedUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "matchesExpectedUser": true,
+    "highRiskByUsername": true,
+    "currentUser": "postgres",
+    "sessionUser": "postgres",
+    "currentDatabase": "postgres",
+    "highRiskByCurrentUser": true,
+    "roleMeta": {
+      "rolname": "postgres",
+      "rolsuper": false,
+      "rolcreaterole": true,
+      "rolcreatedb": true,
+      "rolreplication": true,
+      "rolbypassrls": true
+    },
+    "canCreateSchema": true,
+    "grants": [],
+    "publicTables": [],
+    "tablePrivilegeMatrix": [
+      {
+        "table_name": "user_accounts",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "user_profiles",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "app_sessions",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      }
+    ],
+    "tablePrivilegeError": null,
+    "connectionError": null
+  }
+}
+--- EXIT CODE: 0 ---
+
+=== RUN: npx supabase --version ===
+2.78.1
+--- EXIT CODE: 0 ---
+
+=== RUN: npx supabase projects list ===
+
+  
+   LINKED | ORG ID               | REFERENCE ID         | NAME    | REGION              | CREATED AT (UTC)    
+  --------|----------------------|----------------------|---------|---------------------|---------------------
+     ●    | gqbnngtjiyphkzcgfoky | dkooyhfvqfplblfgjwtz | WEB BKT | South Asia (Mumbai) | 2026-03-14 01:11:55
+--- EXIT CODE: 0 ---
+
+=== RUN: npx supabase migration list ===
+node.exe : Initialising login role...
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Initialising login role...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Connecting to remote database...
+
+  
+   Local | Remote | Time (UTC) 
+  -------|--------|------------
+--- EXIT CODE: 0 ---
+
+=== RUN: npx supabase db push --yes ===
+node.exe : Initialising login role...
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Initialising login role...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Connecting to remote database...
+Remote database is up to date.
+--- EXIT CODE: 0 ---
+
+=== RUN: node scripts/task003c-runtime-audit.mjs (post-push) ===
+{
+  "runtimeEnv": [
+    {
+      "key": "APP_ORIGIN",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "http://localhost:3000"
+    },
+    {
+      "key": "AUTH_ADAPTER_MODE",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "supabase"
+    },
+    {
+      "key": "SESSION_TOKEN_PEPPER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "no****)\""
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "https://****.supabase.co"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****kE"
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****lQ"
+    },
+    {
+      "key": "DATABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgresql://postgres.dkooyhfvqfplblfgjwtz:***@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+    },
+    {
+      "key": "DATABASE_EXPECTED_USER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgres.dkooyhfvqfplblfgjwtz"
+    }
+  ],
+  "databaseUrlParts": {
+    "host": "aws-1-ap-south-1.pooler.supabase.com",
+    "port": 5432,
+    "username": "postgres.dkooyhfvqfplblfgjwtz",
+    "database": "postgres"
+  },
+  "databaseUserCheck": {
+    "parsedDatabaseUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "databaseExpectedUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "matchesExpectedUser": true,
+    "highRiskByUsername": true,
+    "currentUser": "postgres",
+    "sessionUser": "postgres",
+    "currentDatabase": "postgres",
+    "highRiskByCurrentUser": true,
+    "roleMeta": {
+      "rolname": "postgres",
+      "rolsuper": false,
+      "rolcreaterole": true,
+      "rolcreatedb": true,
+      "rolreplication": true,
+      "rolbypassrls": true
+    },
+    "canCreateSchema": true,
+    "grants": [],
+    "publicTables": [],
+    "tablePrivilegeMatrix": [
+      {
+        "table_name": "user_accounts",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "user_profiles",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "app_sessions",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "table_exists": false,
+        "can_select": null,
+        "can_insert": null,
+        "can_update": null,
+        "can_delete": null
+      }
+    ],
+    "tablePrivilegeError": null,
+    "connectionError": null
+  }
+}
+--- EXIT CODE: 0 ---
+
+=== RUN: npm run lint ===
+node.exe : npm error code EJSONPARSE
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm error code EJSONPARSE:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm error JSON.parse Invalid package.json: JSONParseError: Unexpected non-whitespace character after JSON at position 
+1333 (line 43 column 1) while parsing near "...node\": \">=22\"\n  }\n}\n{\n  \"scripts\": {\n   ..."
+npm error JSON.parse Failed to parse JSON data.
+npm error JSON.parse Note: package.json must be actual JSON, not just JavaScript.
+npm error A complete log of this run can be found in: 
+C:\Users\minhd\AppData\Local\npm-cache\_logs\2026-03-14T02_57_50_356Z-debug-0.log
+--- EXIT CODE: 1 ---
+
+=== RUN: npm run typecheck ===
+node.exe : npm error code EJSONPARSE
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm error code EJSONPARSE:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm error JSON.parse Invalid package.json: JSONParseError: Unexpected non-whitespace character after JSON at position 
+1333 (line 43 column 1) while parsing near "...node\": \">=22\"\n  }\n}\n{\n  \"scripts\": {\n   ..."
+npm error JSON.parse Failed to parse JSON data.
+npm error JSON.parse Note: package.json must be actual JSON, not just JavaScript.
+npm error A complete log of this run can be found in: 
+C:\Users\minhd\AppData\Local\npm-cache\_logs\2026-03-14T02_57_50_922Z-debug-0.log
+--- EXIT CODE: 1 ---
+
+=== RUN: npm run test ===
+node.exe : npm error code EJSONPARSE
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm error code EJSONPARSE:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm error JSON.parse Invalid package.json: JSONParseError: Unexpected non-whitespace character after JSON at position 
+1333 (line 43 column 1) while parsing near "...node\": \">=22\"\n  }\n}\n{\n  \"scripts\": {\n   ..."
+npm error JSON.parse Failed to parse JSON data.
+npm error JSON.parse Note: package.json must be actual JSON, not just JavaScript.
+npm error A complete log of this run can be found in: 
+C:\Users\minhd\AppData\Local\npm-cache\_logs\2026-03-14T02_57_51_545Z-debug-0.log
+--- EXIT CODE: 1 ---

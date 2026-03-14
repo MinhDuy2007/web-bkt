@@ -1,0 +1,307 @@
+﻿=== npx supabase migration list ===
+Started: 2026-03-14 10:24:09
+node.exe : Initialising login role...
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Initialising login role...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Connecting to remote database...
+
+  
+   Local          | Remote         | Time (UTC)          
+  ----------------|----------------|---------------------
+   20260314002000 | 20260314002000 | 2026-03-14 00:20:00 
+   20260314003000 | 20260314003000 | 2026-03-14 00:30:00 
+   20260314022000 | 20260314022000 | 2026-03-14 02:20:00 
+   20260314023000 | 20260314023000 | 2026-03-14 02:30:00
+ExitCode: 0
+
+=== node scripts/task003c-runtime-audit.mjs ===
+Started: 2026-03-14 10:24:14
+{
+  "runtimeEnv": [
+    {
+      "key": "APP_ORIGIN",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "http://localhost:3000"
+    },
+    {
+      "key": "AUTH_ADAPTER_MODE",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "supabase"
+    },
+    {
+      "key": "SESSION_TOKEN_PEPPER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "f7****a6"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "https://****.supabase.co"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****kE"
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****lQ"
+    },
+    {
+      "key": "DATABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgresql://postgres.dkooyhfvqfplblfgjwtz:***@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+    },
+    {
+      "key": "DATABASE_EXPECTED_USER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgres.dkooyhfvqfplblfgjwtz"
+    }
+  ],
+  "databaseUrlParts": {
+    "host": "aws-1-ap-south-1.pooler.supabase.com",
+    "port": 5432,
+    "username": "postgres.dkooyhfvqfplblfgjwtz",
+    "database": "postgres"
+  },
+  "databaseUserCheck": {
+    "parsedDatabaseUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "databaseExpectedUser": "postgres.dkooyhfvqfplblfgjwtz",
+    "matchesExpectedUser": true,
+    "highRiskByUsername": true,
+    "currentUser": "postgres",
+    "sessionUser": "postgres",
+    "currentDatabase": "postgres",
+    "highRiskByCurrentUser": true,
+    "roleMeta": {
+      "rolname": "postgres",
+      "rolsuper": false,
+      "rolcreaterole": true,
+      "rolcreatedb": true,
+      "rolreplication": true,
+      "rolbypassrls": true
+    },
+    "canCreateSchema": true,
+    "grants": [
+      {
+        "table_name": "app_sessions",
+        "privilege_type": "DELETE"
+      },
+      {
+        "table_name": "app_sessions",
+        "privilege_type": "INSERT"
+      },
+      {
+        "table_name": "app_sessions",
+        "privilege_type": "REFERENCES"
+      },
+      {
+        "table_name": "app_sessions",
+        "privilege_type": "SELECT"
+      },
+      {
+        "table_name": "app_sessions",
+        "privilege_type": "TRIGGER"
+      },
+      {
+        "table_name": "app_sessions",
+        "privilege_type": "TRUNCATE"
+      },
+      {
+        "table_name": "app_sessions",
+        "privilege_type": "UPDATE"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "privilege_type": "DELETE"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "privilege_type": "INSERT"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "privilege_type": "REFERENCES"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "privilege_type": "SELECT"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "privilege_type": "TRIGGER"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "privilege_type": "TRUNCATE"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "privilege_type": "UPDATE"
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "privilege_type": "DELETE"
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "privilege_type": "INSERT"
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "privilege_type": "REFERENCES"
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "privilege_type": "SELECT"
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "privilege_type": "TRIGGER"
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "privilege_type": "TRUNCATE"
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "privilege_type": "UPDATE"
+      },
+      {
+        "table_name": "user_accounts",
+        "privilege_type": "DELETE"
+      },
+      {
+        "table_name": "user_accounts",
+        "privilege_type": "INSERT"
+      },
+      {
+        "table_name": "user_accounts",
+        "privilege_type": "REFERENCES"
+      },
+      {
+        "table_name": "user_accounts",
+        "privilege_type": "SELECT"
+      },
+      {
+        "table_name": "user_accounts",
+        "privilege_type": "TRIGGER"
+      },
+      {
+        "table_name": "user_accounts",
+        "privilege_type": "TRUNCATE"
+      },
+      {
+        "table_name": "user_accounts",
+        "privilege_type": "UPDATE"
+      },
+      {
+        "table_name": "user_profiles",
+        "privilege_type": "DELETE"
+      },
+      {
+        "table_name": "user_profiles",
+        "privilege_type": "INSERT"
+      },
+      {
+        "table_name": "user_profiles",
+        "privilege_type": "REFERENCES"
+      },
+      {
+        "table_name": "user_profiles",
+        "privilege_type": "SELECT"
+      },
+      {
+        "table_name": "user_profiles",
+        "privilege_type": "TRIGGER"
+      },
+      {
+        "table_name": "user_profiles",
+        "privilege_type": "TRUNCATE"
+      },
+      {
+        "table_name": "user_profiles",
+        "privilege_type": "UPDATE"
+      }
+    ],
+    "publicTables": [
+      {
+        "table_name": "app_sessions"
+      },
+      {
+        "table_name": "teacher_verification_audit_logs"
+      },
+      {
+        "table_name": "teacher_verification_requests"
+      },
+      {
+        "table_name": "user_accounts"
+      },
+      {
+        "table_name": "user_profiles"
+      }
+    ],
+    "tablePrivilegeMatrix": [
+      {
+        "table_name": "user_accounts",
+        "table_exists": true,
+        "can_select": true,
+        "can_insert": true,
+        "can_update": true,
+        "can_delete": true
+      },
+      {
+        "table_name": "user_profiles",
+        "table_exists": true,
+        "can_select": true,
+        "can_insert": true,
+        "can_update": true,
+        "can_delete": true
+      },
+      {
+        "table_name": "app_sessions",
+        "table_exists": true,
+        "can_select": true,
+        "can_insert": true,
+        "can_update": true,
+        "can_delete": true
+      },
+      {
+        "table_name": "teacher_verification_requests",
+        "table_exists": true,
+        "can_select": true,
+        "can_insert": true,
+        "can_update": true,
+        "can_delete": true
+      },
+      {
+        "table_name": "teacher_verification_audit_logs",
+        "table_exists": true,
+        "can_select": true,
+        "can_insert": true,
+        "can_update": true,
+        "can_delete": true
+      }
+    ],
+    "tablePrivilegeError": null,
+    "connectionError": null
+  }
+}
+ExitCode: 0
+
+=== Summary ===
+migration-list: 0
+runtime-audit: 0

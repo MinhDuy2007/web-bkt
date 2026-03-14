@@ -1,0 +1,98 @@
+﻿[Task 003C Runtime Env/DB/CLI Verification - Clean Log]
+Timestamp: 2026-03-14 09:24:01
+WorkingDir: D:\web-bkt
+
+
+=== RUN: node scripts/task003c-runtime-audit.mjs ===
+{
+  "runtimeEnv": [
+    {
+      "key": "APP_ORIGIN",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "http://localhost:3000"
+    },
+    {
+      "key": "AUTH_ADAPTER_MODE",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "supabase"
+    },
+    {
+      "key": "SESSION_TOKEN_PEPPER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "no****)\""
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "https://****.supabase.co"
+    },
+    {
+      "key": "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "ey****kE"
+    },
+    {
+      "key": "SUPABASE_SERVICE_ROLE_KEY",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "YO****EY"
+    },
+    {
+      "key": "DATABASE_URL",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgresql://postgres:***@db.dkooyhfvqfplblfgjwtz.supabase.co:5432/postgres"
+    },
+    {
+      "key": "DATABASE_EXPECTED_USER",
+      "present": true,
+      "format": "ok",
+      "maskedValue": "postgres"
+    }
+  ],
+  "databaseUserCheck": {
+    "parsedDatabaseUser": "postgres",
+    "databaseExpectedUser": "postgres",
+    "matchesExpectedUser": true,
+    "highRiskByUsername": true,
+    "currentUser": null,
+    "sessionUser": null,
+    "currentDatabase": null,
+    "highRiskByCurrentUser": false,
+    "roleMeta": null,
+    "canCreateSchema": null,
+    "grants": [],
+    "connectionError": "getaddrinfo ENOTFOUND db.dkooyhfvqfplblfgjwtz.supabase.co"
+  }
+}
+--- EXIT CODE: 0 ---
+
+=== RUN: npx supabase --version ===
+2.78.1
+--- EXIT CODE: 0 ---
+
+=== RUN: npx supabase projects list ===
+
+  
+   LINKED | ORG ID               | REFERENCE ID         | NAME    | REGION              | CREATED AT (UTC)    
+  --------|----------------------|----------------------|---------|---------------------|---------------------
+     ●    | gqbnngtjiyphkzcgfoky | dkooyhfvqfplblfgjwtz | WEB BKT | South Asia (Mumbai) | 2026-03-14 01:11:55
+--- EXIT CODE: 0 ---
+
+=== RUN: npx supabase db push --dry-run ===
+node.exe : Initialising login role...
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\minhd\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Initialising login role...:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+DRY RUN: migrations will *not* be pushed to the database.
+Connecting to remote database...
+Remote database is up to date.
+--- EXIT CODE: 0 ---
