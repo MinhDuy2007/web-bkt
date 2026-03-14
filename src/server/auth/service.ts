@@ -15,6 +15,7 @@ import type {
   AuthSession,
   SessionRecord,
   TeacherVerificationRequestRecord,
+  TeacherVerificationRequestStatus,
   UserProfileRecord,
 } from "@/types/auth";
 
@@ -57,6 +58,30 @@ type NguoiDungCongKhai = {
 export type KetQuaDuyetYeuCauXacMinhGiaoVien = {
   request: TeacherVerificationRequestRecord;
   account: Omit<AccountRecord, "passwordHash">;
+};
+
+export type TrangThaiLocYeuCauXacMinhGiaoVien = TeacherVerificationRequestStatus | "all";
+
+export type LietKeYeuCauXacMinhGiaoVienChoAdminInput = {
+  status: TrangThaiLocYeuCauXacMinhGiaoVien;
+  page: number;
+  limit: number;
+};
+
+export type ItemDanhSachYeuCauXacMinhGiaoVienChoAdmin = {
+  request: TeacherVerificationRequestRecord;
+  account: Omit<AccountRecord, "passwordHash">;
+  profile: UserProfileRecord | null;
+};
+
+export type KetQuaDanhSachYeuCauXacMinhGiaoVienChoAdmin = {
+  items: ItemDanhSachYeuCauXacMinhGiaoVienChoAdmin[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 };
 
 function docObject(payload: unknown): Record<string, unknown> {
@@ -255,7 +280,7 @@ function taoAuditMetadataPlaceholder(audit?: AuditMetadata): void {
   void audit;
 }
 
-function layRepositoryChoAdminReview() {
+function layRepositoryChoAdminPath() {
   const env = layBienMoiTruongServer();
   if (env.authAdapterMode === "mock") {
     return layAuthRepository();
@@ -521,6 +546,39 @@ export async function guiYeuCauXacMinhGiaoVien(
   return repository.upsertTeacherVerificationRequest(upsertedRequest);
 }
 
+export async function lietKeYeuCauXacMinhGiaoVienChoAdmin(
+  token: string,
+  input: LietKeYeuCauXacMinhGiaoVienChoAdminInput,
+): Promise<KetQuaDanhSachYeuCauXacMinhGiaoVienChoAdmin> {
+  const session = await layPhienDangNhap(token);
+  batBuocQuyenAdmin(session);
+
+  const repository = layRepositoryChoAdminPath();
+  const offset = (input.page - 1) * input.limit;
+  const danhSach = await repository.listTeacherVerificationRequests({
+    status: input.status === "all" ? null : input.status,
+    limit: input.limit,
+    offset,
+  });
+
+  const totalPages =
+    danhSach.total > 0 ? Math.ceil(danhSach.total / input.limit) : 0;
+
+  return {
+    items: danhSach.items.map((item) => ({
+      request: item.request,
+      account: loaiBoPasswordHash(item.account),
+      profile: item.profile,
+    })),
+    pagination: {
+      page: input.page,
+      limit: input.limit,
+      total: danhSach.total,
+      totalPages,
+    },
+  };
+}
+
 export async function duyetYeuCauXacMinhGiaoVienBoiAdmin(
   token: string,
   requestId: string,
@@ -530,7 +588,7 @@ export async function duyetYeuCauXacMinhGiaoVienBoiAdmin(
   const session = await layPhienDangNhap(token);
   const verifiedSession = batBuocQuyenAdmin(session);
   const normalizedRequestId = chuanHoaRequestId(requestId);
-  const repository = layRepositoryChoAdminReview();
+  const repository = layRepositoryChoAdminPath();
 
   const reviewed = await repository.reviewTeacherVerification({
     requestId: normalizedRequestId,

@@ -1,0 +1,246 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 20px 48px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.2), transparent 42%),
+    radial-gradient(circle at 100% 0%, rgba(30, 64, 175, 0.2), transparent 36%),
+    var(--color-bg);
+}
+
+.container {
+  width: min(1120px, 100%);
+  margin: 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-bg-elevated) 92%, #040b17 8%);
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+}
+
+.header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.8vw, 2rem);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.noticeCard {
+  border: 1px solid color-mix(in srgb, #dc2626 62%, var(--color-border) 38%);
+  border-radius: 14px;
+  background: color-mix(in srgb, #3f1117 62%, var(--color-bg-elevated) 38%);
+  padding: 16px;
+}
+
+.noticeTitle {
+  margin: 0;
+  font-weight: 700;
+}
+
+.noticeText {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.toolbarLeft {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.label {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.select {
+  min-width: 210px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #0e162b;
+  color: var(--color-text-primary);
+  padding: 9px 11px;
+}
+
+.button {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #122036;
+  color: var(--color-text-primary);
+  padding: 9px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.buttonSuccess {
+  border-color: color-mix(in srgb, #22c55e 70%, var(--color-border) 30%);
+  background: color-mix(in srgb, #166534 70%, #0f172a 30%);
+}
+
+.buttonDanger {
+  border-color: color-mix(in srgb, #f43f5e 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #881337 68%, #0f172a 32%);
+}
+
+.inlineMessage {
+  margin: 0 0 14px;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.inlineMessageSuccess {
+  border: 1px solid color-mix(in srgb, #22c55e 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #14532d 72%, var(--color-bg-elevated) 28%);
+}
+
+.inlineMessageError {
+  border: 1px solid color-mix(in srgb, #ef4444 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #7f1d1d 70%, var(--color-bg-elevated) 30%);
+}
+
+.loadingState,
+.emptyState,
+.errorState {
+  border: 1px dashed var(--color-border);
+  border-radius: 14px;
+  padding: 24px 18px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.cards {
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 96%, #020617 4%);
+  padding: 16px;
+}
+
+.cardTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.name {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.status {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusPending {
+  background: color-mix(in srgb, #f59e0b 24%, #1e293b 76%);
+  color: #fde68a;
+}
+
+.statusApproved {
+  background: color-mix(in srgb, #22c55e 24%, #1e293b 76%);
+  color: #bbf7d0;
+}
+
+.statusRejected {
+  background: color-mix(in srgb, #f43f5e 24%, #1e293b 76%);
+  color: #fecdd3;
+}
+
+.subjects {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+}
+
+.noteInput {
+  width: 100%;
+  min-height: 90px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #0c1528;
+  color: var(--color-text-primary);
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.reviewActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.paging {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.pagingInfo {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.pagingButtons {
+  display: flex;
+  gap: 8px;
+}

@@ -4,6 +4,8 @@ import type {
   AuthRepository,
   CreateSessionInput,
   CreateUserInput,
+  ListTeacherVerificationRequestsInput,
+  ListTeacherVerificationRequestsResult,
   ReviewTeacherVerificationInput,
   ReviewTeacherVerificationResult,
   UpdateUserInput,
@@ -483,6 +485,89 @@ export function taoSupabaseAdminAuthRepository(): AuthRepository {
       }
 
       return data ? mapTeacherVerificationRequestRow(data) : null;
+    },
+
+    async listTeacherVerificationRequests(
+      input: ListTeacherVerificationRequestsInput,
+    ): Promise<ListTeacherVerificationRequestsResult> {
+      let requestQuery = client
+        .from("teacher_verification_requests")
+        .select("*", { count: "exact" })
+        .order("submitted_at", { ascending: false })
+        .range(input.offset, input.offset + input.limit - 1);
+
+      if (input.status) {
+        requestQuery = requestQuery.eq("status", input.status);
+      }
+
+      const { data: requestRows, error: requestError, count } =
+        await requestQuery.returns<TeacherVerificationRequestRow[]>();
+
+      if (requestError) {
+        taoLoiSupabase("liet ke yeu cau xac minh giao vien", requestError);
+      }
+
+      const mappedRequests = (requestRows ?? []).map((row) =>
+        mapTeacherVerificationRequestRow(row),
+      );
+      if (mappedRequests.length === 0) {
+        return {
+          items: [],
+          total: count ?? 0,
+        };
+      }
+
+      const userIds = Array.from(new Set(mappedRequests.map((item) => item.userId)));
+
+      const { data: accountRows, error: accountError } = await client
+        .from("user_accounts")
+        .select("*")
+        .in("id", userIds)
+        .returns<UserAccountRow[]>();
+      if (accountError) {
+        taoLoiSupabase("doc tai khoan cho danh sach xac minh giao vien", accountError);
+      }
+
+      const { data: profileRows, error: profileError } = await client
+        .from("user_profiles")
+        .select("*")
+        .in("user_id", userIds)
+        .returns<UserProfileRow[]>();
+      if (profileError) {
+        taoLoiSupabase("doc ho so cho danh sach xac minh giao vien", profileError);
+      }
+
+      const accountMap = new Map<string, AccountRecord>();
+      for (const row of accountRows ?? []) {
+        accountMap.set(row.id, mapUserAccountRow(row));
+      }
+
+      const profileMap = new Map<string, UserProfileRecord>();
+      for (const row of profileRows ?? []) {
+        profileMap.set(row.user_id, mapUserProfileRow(row));
+      }
+
+      const items = mappedRequests.map((request) => {
+        const account = accountMap.get(request.userId);
+        if (!account) {
+          throw new AuthError({
+            code: "SUPABASE_DATA_INVALID",
+            message: "[supabase-auth] Danh sach xac minh giao vien thieu tai khoan lien ket.",
+            statusCode: 500,
+          });
+        }
+
+        return {
+          request,
+          account,
+          profile: profileMap.get(request.userId) ?? null,
+        };
+      });
+
+      return {
+        items,
+        total: count ?? items.length,
+      };
     },
 
     async reviewTeacherVerification(

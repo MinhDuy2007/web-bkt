@@ -6,6 +6,7 @@ import type {
   IdentityStatus,
   SessionRecord,
   TeacherVerificationRequestRecord,
+  TeacherVerificationRequestStatus,
   TeacherVerificationStatus,
   UserProfileRecord,
 } from "@/types/auth";
@@ -55,6 +56,23 @@ export type ReviewTeacherVerificationResult = {
   account: AccountRecord;
 };
 
+export type ListTeacherVerificationRequestsInput = {
+  status?: TeacherVerificationRequestStatus | null;
+  limit: number;
+  offset: number;
+};
+
+export type TeacherVerificationListItemRecord = {
+  request: TeacherVerificationRequestRecord;
+  account: AccountRecord;
+  profile: UserProfileRecord | null;
+};
+
+export type ListTeacherVerificationRequestsResult = {
+  items: TeacherVerificationListItemRecord[];
+  total: number;
+};
+
 export interface AuthRepository {
   createUser(input: CreateUserInput): Promise<AccountRecord>;
   findUserByEmail(email: string): Promise<AccountRecord | null>;
@@ -72,6 +90,9 @@ export interface AuthRepository {
     input: TeacherVerificationRequestRecord,
   ): Promise<TeacherVerificationRequestRecord>;
   findTeacherVerificationByUserId(userId: string): Promise<TeacherVerificationRequestRecord | null>;
+  listTeacherVerificationRequests(
+    input: ListTeacherVerificationRequestsInput,
+  ): Promise<ListTeacherVerificationRequestsResult>;
   reviewTeacherVerification(
     input: ReviewTeacherVerificationInput,
   ): Promise<ReviewTeacherVerificationResult>;

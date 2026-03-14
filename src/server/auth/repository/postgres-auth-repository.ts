@@ -4,6 +4,8 @@ import type {
   AuthRepository,
   CreateSessionInput,
   CreateUserInput,
+  ListTeacherVerificationRequestsInput,
+  ListTeacherVerificationRequestsResult,
   ReviewTeacherVerificationInput,
   ReviewTeacherVerificationResult,
   UpdateUserInput,
@@ -77,6 +79,41 @@ type TeacherVerificationRequestRow = {
 type ReviewTeacherVerificationRow = {
   request_row: TeacherVerificationRequestRow | null;
   account_row: UserAccountRow | null;
+};
+
+type TeacherVerificationListJoinRow = {
+  request_id: string;
+  request_user_id: string;
+  request_full_name: string;
+  request_school_name: string;
+  request_teaching_subjects: string[];
+  request_evidence_note: string;
+  request_evidence_urls: string[];
+  request_status: string;
+  request_submitted_at: string;
+  request_reviewed_by: string | null;
+  request_reviewed_at: string | null;
+  request_admin_note: string | null;
+  request_created_at: string;
+  request_updated_at: string;
+  account_id: string;
+  account_email: string;
+  account_password_hash: string;
+  account_roles: string[];
+  account_account_status: string;
+  account_identity_status: string;
+  account_teacher_verification_status: string;
+  account_created_by_user_id: string | null;
+  account_last_login_at: string | null;
+  account_created_at: string;
+  account_updated_at: string;
+  profile_user_id: string | null;
+  profile_display_name: string | null;
+  profile_full_name: string | null;
+  profile_birth_year: number | null;
+  profile_school_name: string | null;
+  profile_created_at: string | null;
+  profile_updated_at: string | null;
 };
 
 function taoLoiPostgres(action: string, error: unknown): never {
@@ -219,6 +256,62 @@ function mapTeacherVerificationRequestRow(
     adminNote: row.admin_note,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapTeacherVerificationListJoinRow(row: TeacherVerificationListJoinRow) {
+  const request = mapTeacherVerificationRequestRow({
+    id: row.request_id,
+    user_id: row.request_user_id,
+    full_name: row.request_full_name,
+    school_name: row.request_school_name,
+    teaching_subjects: row.request_teaching_subjects,
+    evidence_note: row.request_evidence_note,
+    evidence_urls: row.request_evidence_urls,
+    status: row.request_status,
+    submitted_at: row.request_submitted_at,
+    reviewed_by: row.request_reviewed_by,
+    reviewed_at: row.request_reviewed_at,
+    admin_note: row.request_admin_note,
+    created_at: row.request_created_at,
+    updated_at: row.request_updated_at,
+  });
+
+  const account = mapUserAccountRow({
+    id: row.account_id,
+    email: row.account_email,
+    password_hash: row.account_password_hash,
+    roles: row.account_roles,
+    account_status: row.account_account_status,
+    identity_status: row.account_identity_status,
+    teacher_verification_status: row.account_teacher_verification_status,
+    created_by_user_id: row.account_created_by_user_id,
+    last_login_at: row.account_last_login_at,
+    created_at: row.account_created_at,
+    updated_at: row.account_updated_at,
+  });
+
+  const profile =
+    row.profile_user_id &&
+    row.profile_display_name &&
+    row.profile_full_name &&
+    row.profile_created_at &&
+    row.profile_updated_at
+      ? mapUserProfileRow({
+          user_id: row.profile_user_id,
+          display_name: row.profile_display_name,
+          full_name: row.profile_full_name,
+          birth_year: row.profile_birth_year,
+          school_name: row.profile_school_name,
+          created_at: row.profile_created_at,
+          updated_at: row.profile_updated_at,
+        })
+      : null;
+
+  return {
+    request,
+    account,
+    profile,
   };
 }
 
@@ -617,6 +710,78 @@ export function taoPostgresAuthRepository(): AuthRepository {
         );
       } catch (error) {
         taoLoiPostgres("tim yeu cau xac minh giao vien", error);
+      }
+    },
+
+    async listTeacherVerificationRequests(
+      input: ListTeacherVerificationRequestsInput,
+    ): Promise<ListTeacherVerificationRequestsResult> {
+      try {
+        const totalResult = await pool.query<{ total: string }>(
+          `select count(*)::text as total
+           from public.teacher_verification_requests
+           where ($1::text is null or status = $1::text)`,
+          [input.status ?? null],
+        );
+        const total = Number(totalResult.rows[0]?.total ?? "0");
+
+        if (total === 0) {
+          return {
+            items: [],
+            total: 0,
+          };
+        }
+
+        const result = await pool.query<TeacherVerificationListJoinRow>(
+          `select
+             tvr.id as request_id,
+             tvr.user_id as request_user_id,
+             tvr.full_name as request_full_name,
+             tvr.school_name as request_school_name,
+             tvr.teaching_subjects as request_teaching_subjects,
+             tvr.evidence_note as request_evidence_note,
+             tvr.evidence_urls as request_evidence_urls,
+             tvr.status as request_status,
+             tvr.submitted_at as request_submitted_at,
+             tvr.reviewed_by as request_reviewed_by,
+             tvr.reviewed_at as request_reviewed_at,
+             tvr.admin_note as request_admin_note,
+             tvr.created_at as request_created_at,
+             tvr.updated_at as request_updated_at,
+             ua.id as account_id,
+             ua.email as account_email,
+             ua.password_hash as account_password_hash,
+             ua.roles as account_roles,
+             ua.account_status as account_account_status,
+             ua.identity_status as account_identity_status,
+             ua.teacher_verification_status as account_teacher_verification_status,
+             ua.created_by_user_id as account_created_by_user_id,
+             ua.last_login_at as account_last_login_at,
+             ua.created_at as account_created_at,
+             ua.updated_at as account_updated_at,
+             up.user_id as profile_user_id,
+             up.display_name as profile_display_name,
+             up.full_name as profile_full_name,
+             up.birth_year as profile_birth_year,
+             up.school_name as profile_school_name,
+             up.created_at as profile_created_at,
+             up.updated_at as profile_updated_at
+           from public.teacher_verification_requests tvr
+           inner join public.user_accounts ua on ua.id = tvr.user_id
+           left join public.user_profiles up on up.user_id = tvr.user_id
+           where ($1::text is null or tvr.status = $1::text)
+           order by tvr.submitted_at desc
+           limit $2
+           offset $3`,
+          [input.status ?? null, input.limit, input.offset],
+        );
+
+        return {
+          items: result.rows.map((row) => mapTeacherVerificationListJoinRow(row)),
+          total,
+        };
+      } catch (error) {
+        taoLoiPostgres("liet ke yeu cau xac minh giao vien", error);
       }
     },
 

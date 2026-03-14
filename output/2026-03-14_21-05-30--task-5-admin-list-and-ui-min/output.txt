@@ -1,0 +1,26 @@
+﻿[THOI GIAN TEST]
+2026-03-14 21:06:04
+
+[MUC TIEU TEST]
+Kiem tra API list admin-only va UI admin review toi thieu cho task 5.
+
+[LENH DA CHAY]
+1) npm run lint
+2) npm run typecheck
+3) npm run test
+4) npm run dev -- --hostname 127.0.0.1 --port 3000
+5) Invoke-WebRequest http://127.0.0.1:3000/admin/teacher-verification
+6) msedge --headless --screenshot
+
+[KET QUA TOM TAT]
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- HTTP status trang admin review: 200
+- Anh giao dien: admin-teacher-verification.jpg
+- Log dev: dev-server.log
+- Log loi dev: dev-server.err.log
+
+[GHI CHU]
+- Anh chup la trang admin review khi truy cap thuc te tu trinh duyet headless.
+- Quyen admin list/review duoc kiem chung boi test route/service trong test.log.

@@ -11,6 +11,8 @@ import type {
   AuthRepository,
   CreateSessionInput,
   CreateUserInput,
+  ListTeacherVerificationRequestsInput,
+  ListTeacherVerificationRequestsResult,
   ReviewTeacherVerificationInput,
   ReviewTeacherVerificationResult,
   UpdateUserInput,
@@ -233,6 +235,38 @@ function taoMockAuthRepository(): AuthRepository {
     ): Promise<TeacherVerificationRequestRecord | null> {
       const found = mockStore.teacherRequestsByUserId.get(userId);
       return found ? saoChep(found) : null;
+    },
+
+    async listTeacherVerificationRequests(
+      input: ListTeacherVerificationRequestsInput,
+    ): Promise<ListTeacherVerificationRequestsResult> {
+      const requests = Array.from(mockStore.teacherRequestsByUserId.values())
+        .filter((item) => (input.status ? item.status === input.status : true))
+        .sort(
+          (a, b) =>
+            new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+        );
+
+      const total = requests.length;
+      const sliced = requests.slice(input.offset, input.offset + input.limit);
+      const items = sliced.map((request) => {
+        const account = mockStore.usersById.get(request.userId);
+        if (!account) {
+          throw new Error("Khong tim thay tai khoan cho yeu cau xac minh giao vien.");
+        }
+
+        const profile = mockStore.profilesByUserId.get(request.userId) ?? null;
+        return {
+          request: saoChep(request),
+          account: saoChep(account),
+          profile: profile ? saoChep(profile) : null,
+        };
+      });
+
+      return {
+        items,
+        total,
+      };
     },
 
     async reviewTeacherVerification(

@@ -1,0 +1,79 @@
+﻿[THOI GIAN TEST]
+2026-03-14 20:29:17
+
+[MUC TIEU TEST]
+Kiem chung integration/runtime that cho luong admin review teacher verification tren DB dev/test.
+
+[LENH DA CHAY]
+1) npm run lint
+2) npm run typecheck
+3) npm run test
+4) npm run test:task4a:runtime (toi da 2 lan neu gap loi DNS tam thoi)
+
+[KET QUA TOM TAT]
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- runtime proof exit code: 0
+- runtime proof so lan chay: 1
+
+[DIEM CHUNG MINH RUNTIME]
+- Non-admin bi chan: co
+- Approve flow dong bo request/account: co
+- Reject flow dong bo request/account: co
+- Audit log duoc ghi that tren DB: co
+- Du lieu test duoc cleanup theo prefix: co
+
+[RUNTIME PROOF LOG]
+
+> web-bkt@0.1.0 test:task4a:runtime
+> node --import tsx scripts/task4a-admin-review-runtime-proof.ts
+
+{
+  "adapterMode": "supabase",
+  "proofScope": {
+    "service": true,
+    "repository": true,
+    "database": true
+  },
+  "cases": {
+    "nonAdminBlocked": {
+      "pass": true,
+      "errorCode": "ADMIN_PERMISSION_REQUIRED"
+    },
+    "approve": {
+      "pass": true,
+      "requestId": "79da829a-ce0a-4054-a23c-d02a3a68f881",
+      "targetUserId": "c97720cd-f06c-44d2-9d30-f78bb7e27bb3",
+      "reviewedByMatchesAdmin": true,
+      "teacherRoleAdded": true,
+      "accountStatusSynced": true,
+      "auditApprovedLogged": true
+    },
+    "reject": {
+      "pass": true,
+      "requestId": "ee33a58d-f6ab-496a-bc51-2936dbd26508",
+      "targetUserId": "763864aa-c42e-475d-9371-4c326632b9b6",
+      "reviewedByMatchesAdmin": true,
+      "teacherRoleRemoved": true,
+      "accountStatusSynced": true,
+      "auditRejectedLogged": true
+    }
+  },
+  "cleanup": {
+    "deletedUsers": 0
+  },
+  "notes": [
+    "Proof da chay tren DB dev/test that.",
+    "Non-admin bi chan o service layer truoc khi vao admin review path.",
+    "Approve/reject duoc doi chieu lai bang truy van DB runtime."
+  ]
+}
+{
+  "cleanup": {
+    "prefix": "task4a-1773494910948",
+    "deletedUsers": 4
+  }
+}
+
+
