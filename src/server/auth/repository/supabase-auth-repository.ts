@@ -7,7 +7,7 @@ import type {
   UpdateUserInput,
   UpsertProfileInput,
 } from "@/server/auth/repository/auth-repository";
-import { taoSupabaseServerClient } from "@/server/supabase/server-client";
+import { taoSupabaseAdminServerClient } from "@/server/supabase/server-client";
 import {
   ACCOUNT_STATUSES,
   APP_ROLES,
@@ -23,6 +23,7 @@ import {
   type UserProfileRecord,
 } from "@/types/auth";
 
+// Module nay chi danh cho admin/internal path can service role.
 type UserAccountRow = {
   id: string;
   email: string;
@@ -48,7 +49,7 @@ type UserProfileRow = {
 };
 
 type AppSessionRow = {
-  token: string;
+  token_hash: string;
   user_id: string;
   issued_at: string;
   expires_at: string;
@@ -159,7 +160,7 @@ function mapUserProfileRow(row: UserProfileRow): UserProfileRecord {
 
 function mapSessionRow(row: AppSessionRow): SessionRecord {
   return {
-    token: row.token,
+    tokenHash: row.token_hash,
     userId: row.user_id,
     issuedAt: row.issued_at,
     expiresAt: row.expires_at,
@@ -192,8 +193,8 @@ function mapTeacherVerificationRequestRow(
   };
 }
 
-export function taoSupabaseAuthRepository(): AuthRepository {
-  const client = taoSupabaseServerClient();
+export function taoSupabaseAdminAuthRepository(): AuthRepository {
+  const client = taoSupabaseAdminServerClient();
 
   return {
     async createUser(input: CreateUserInput): Promise<AccountRecord> {
@@ -336,7 +337,7 @@ export function taoSupabaseAuthRepository(): AuthRepository {
       const { data, error } = await client
         .from("app_sessions")
         .insert({
-          token: input.token,
+          token_hash: input.tokenHash,
           user_id: input.userId,
           issued_at: input.issuedAt,
           expires_at: input.expiresAt,
@@ -352,11 +353,11 @@ export function taoSupabaseAuthRepository(): AuthRepository {
       return mapSessionRow(data);
     },
 
-    async findSessionByToken(token: string): Promise<SessionRecord | null> {
+    async findSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null> {
       const { data, error } = await client
         .from("app_sessions")
         .select("*")
-        .eq("token", token)
+        .eq("token_hash", tokenHash)
         .maybeSingle<AppSessionRow>();
 
       if (error) {
@@ -366,8 +367,8 @@ export function taoSupabaseAuthRepository(): AuthRepository {
       return data ? mapSessionRow(data) : null;
     },
 
-    async deleteSession(token: string): Promise<void> {
-      const { error } = await client.from("app_sessions").delete().eq("token", token);
+    async deleteSessionByTokenHash(tokenHash: string): Promise<void> {
+      const { error } = await client.from("app_sessions").delete().eq("token_hash", tokenHash);
       if (error) {
         taoLoiSupabase("xoa session", error);
       }
@@ -423,4 +424,8 @@ export function taoSupabaseAuthRepository(): AuthRepository {
       return data ? mapTeacherVerificationRequestRow(data) : null;
     },
   };
+}
+
+export function taoSupabaseAuthRepository(): AuthRepository {
+  return taoSupabaseAdminAuthRepository();
 }

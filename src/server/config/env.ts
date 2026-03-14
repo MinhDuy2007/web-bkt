@@ -4,6 +4,7 @@ export type ServerEnv = {
   appName: string;
   authAdapterMode: AuthAdapterMode;
   authSessionTtlMinutes: number;
+  sessionTokenPepper: string;
   supabaseUrl: string | null;
   supabaseAnonKey: string | null;
   supabaseServiceRoleKey: string | null;
@@ -14,6 +15,7 @@ export type ServerEnv = {
 
 const AUTH_ADAPTER_MODES: AuthAdapterMode[] = ["mock", "supabase"];
 const SESSION_TTL_DEFAULT_MINUTES = 120;
+const SESSION_TOKEN_PEPPER_DEV_FALLBACK = "dev-only-session-token-pepper";
 let cachedServerEnv: ServerEnv | null = null;
 
 function docGiaTriMoiTruong(key: string): string {
@@ -49,6 +51,25 @@ function docCheDoAuth(): AuthAdapterMode {
   return rawMode as AuthAdapterMode;
 }
 
+function docSessionTokenPepper(appName: string): { value: string; usingFallback: boolean } {
+  const configured = docGiaTriMoiTruong("SESSION_TOKEN_PEPPER");
+  if (configured) {
+    return {
+      value: configured,
+      usingFallback: false,
+    };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("[env] SESSION_TOKEN_PEPPER bat buoc co trong moi truong production.");
+  }
+
+  return {
+    value: `${appName}-${SESSION_TOKEN_PEPPER_DEV_FALLBACK}`,
+    usingFallback: true,
+  };
+}
+
 export function layBienMoiTruongServer(): ServerEnv {
   if (cachedServerEnv) {
     return cachedServerEnv;
@@ -56,6 +77,7 @@ export function layBienMoiTruongServer(): ServerEnv {
 
   const appName = docGiaTriMoiTruong("NEXT_PUBLIC_APP_NAME") || "web-bkt";
   const authAdapterMode = docCheDoAuth();
+  const sessionTokenPepper = docSessionTokenPepper(appName);
 
   const env: ServerEnv = {
     appName,
@@ -64,6 +86,7 @@ export function layBienMoiTruongServer(): ServerEnv {
       "AUTH_SESSION_TTL_MINUTES",
       SESSION_TTL_DEFAULT_MINUTES,
     ),
+    sessionTokenPepper: sessionTokenPepper.value,
     supabaseUrl: docGiaTriTuyChon("NEXT_PUBLIC_SUPABASE_URL"),
     supabaseAnonKey: docGiaTriTuyChon("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     supabaseServiceRoleKey: docGiaTriTuyChon("SUPABASE_SERVICE_ROLE_KEY"),
@@ -73,9 +96,14 @@ export function layBienMoiTruongServer(): ServerEnv {
   };
 
   if (env.authAdapterMode === "supabase") {
-    if (!env.supabaseUrl || !env.supabaseAnonKey || !env.supabaseServiceRoleKey) {
+    if (!env.supabaseUrl || !env.supabaseAnonKey || !env.databaseUrl) {
       throw new Error(
-        "[env] AUTH_ADAPTER_MODE=supabase can NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.",
+        "[env] AUTH_ADAPTER_MODE=supabase can NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, DATABASE_URL.",
+      );
+    }
+    if (sessionTokenPepper.usingFallback) {
+      throw new Error(
+        "[env] AUTH_ADAPTER_MODE=supabase can cau hinh SESSION_TOKEN_PEPPER rieng, khong dung fallback.",
       );
     }
   }
@@ -85,6 +113,9 @@ export function layBienMoiTruongServer(): ServerEnv {
 }
 
 export function coSupabaseDuDieuKien(env = layBienMoiTruongServer()): boolean {
-  return Boolean(env.supabaseUrl && env.supabaseAnonKey && env.supabaseServiceRoleKey);
+  return Boolean(env.supabaseUrl && env.supabaseAnonKey && env.databaseUrl);
 }
 
+export function coSupabaseServiceRoleDuDieuKien(env = layBienMoiTruongServer()): boolean {
+  return Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
+}

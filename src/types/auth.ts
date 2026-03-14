@@ -66,7 +66,7 @@ export type TeacherVerificationRequestRecord = {
 };
 
 export type SessionRecord = {
-  token: string;
+  tokenHash: string;
   userId: string;
   issuedAt: string;
   expiresAt: string;

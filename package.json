@@ -11,18 +11,21 @@
     "typecheck": "tsc --noEmit",
     "test:auth": "node --import tsx --test tests/unit/auth-permissions.test.ts",
     "test:schema": "node --import tsx --test tests/unit/schema-policy-contract.test.ts",
-    "test": "npm run test:auth && npm run test:schema",
+    "test:runtime-security": "node --import tsx --test tests/unit/runtime-security-boundary.test.ts",
+    "test": "npm run test:auth && npm run test:schema && npm run test:runtime-security",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
     "@supabase/supabase-js": "2.99.1",
     "next": "16.1.6",
+    "pg": "8.20.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@types/node": "25.5.0",
+    "@types/pg": "8.18.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "eslint": "9.39.4",

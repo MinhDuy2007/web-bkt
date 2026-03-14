@@ -1,8 +1,9 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { AuthError } from "@/server/auth/errors";
 import { bamMatKhau, xacThucMatKhau } from "@/server/auth/password";
 import { batBuocQuyenNguoiDungCoBan } from "@/server/auth/permissions";
 import { layAuthRepository } from "@/server/auth/repository";
+import { bamSessionToken, taoSessionTokenGoc } from "@/server/auth/session-token";
 import { layBienMoiTruongServer } from "@/server/config/env";
 import type {
   AccountRecord,
@@ -146,10 +147,6 @@ function taoDisplayNameMacDinh(email: string): string {
   return email.split("@")[0] || "nguoi-dung-moi";
 }
 
-function taoSessionToken(): string {
-  return randomBytes(32).toString("hex");
-}
-
 function tinhExpiresAt(issuedAt: Date): string {
   const env = layBienMoiTruongServer();
   const expiresAtMs = issuedAt.getTime() + env.authSessionTtlMinutes * 60 * 1000;
@@ -166,9 +163,10 @@ function chuyenSession(
   session: SessionRecord,
   user: AccountRecord,
   profile: UserProfileRecord | null,
+  token: string,
 ): AuthSession {
   return {
-    token: session.token,
+    token,
     issuedAt: session.issuedAt,
     expiresAt: session.expiresAt,
     user: {
@@ -304,8 +302,10 @@ export async function dangNhapTaiKhoan(
   }
 
   const issuedAt = new Date();
+  const token = taoSessionTokenGoc();
+  const tokenHash = bamSessionToken(token);
   const session = await repository.createSession({
-    token: taoSessionToken(),
+    tokenHash,
     userId: user.id,
     issuedAt: issuedAt.toISOString(),
     expiresAt: tinhExpiresAt(issuedAt),
@@ -317,7 +317,7 @@ export async function dangNhapTaiKhoan(
   });
   const profile = await repository.findProfileByUserId(user.id);
 
-  return chuyenSession(session, updatedUser, profile);
+  return chuyenSession(session, updatedUser, profile, token);
 }
 
 export async function quenMatKhauPlaceholder(
@@ -340,25 +340,26 @@ export async function layPhienDangNhap(token: string): Promise<AuthSession | nul
   }
 
   const repository = layAuthRepository();
-  const session = await repository.findSessionByToken(token);
+  const tokenHash = bamSessionToken(token);
+  const session = await repository.findSessionByTokenHash(tokenHash);
   if (!session) {
     return null;
   }
 
   const expired = new Date(session.expiresAt).getTime() <= Date.now();
   if (expired) {
-    await repository.deleteSession(token);
+    await repository.deleteSessionByTokenHash(tokenHash);
     return null;
   }
 
   const user = await repository.findUserById(session.userId);
   if (!user) {
-    await repository.deleteSession(token);
+    await repository.deleteSessionByTokenHash(tokenHash);
     return null;
   }
 
   const profile = await repository.findProfileByUserId(user.id);
-  return chuyenSession(session, user, profile);
+  return chuyenSession(session, user, profile, token);
 }
 
 export async function layHoSoHienTai(token: string): Promise<NguoiDungCongKhai> {

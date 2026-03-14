@@ -32,7 +32,7 @@ export type UpsertProfileInput = Omit<UserProfileRecord, "createdAt" | "updatedA
 };
 
 export type CreateSessionInput = {
-  token: string;
+  tokenHash: string;
   userId: string;
   issuedAt: string;
   expiresAt: string;
@@ -49,12 +49,11 @@ export interface AuthRepository {
   findProfileByUserId(userId: string): Promise<UserProfileRecord | null>;
 
   createSession(input: CreateSessionInput): Promise<SessionRecord>;
-  findSessionByToken(token: string): Promise<SessionRecord | null>;
-  deleteSession(token: string): Promise<void>;
+  findSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null>;
+  deleteSessionByTokenHash(tokenHash: string): Promise<void>;
 
   upsertTeacherVerificationRequest(
     input: TeacherVerificationRequestRecord,
   ): Promise<TeacherVerificationRequestRecord>;
   findTeacherVerificationByUserId(userId: string): Promise<TeacherVerificationRequestRecord | null>;
 }
-

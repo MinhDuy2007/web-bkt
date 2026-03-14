@@ -17,7 +17,7 @@ type MockStore = {
   usersById: Map<string, AccountRecord>;
   userIdsByEmail: Map<string, string>;
   profilesByUserId: Map<string, UserProfileRecord>;
-  sessionsByToken: Map<string, SessionRecord>;
+  sessionsByTokenHash: Map<string, SessionRecord>;
   teacherRequestsByUserId: Map<string, TeacherVerificationRequestRecord>;
 };
 
@@ -25,7 +25,7 @@ const mockStore: MockStore = {
   usersById: new Map<string, AccountRecord>(),
   userIdsByEmail: new Map<string, string>(),
   profilesByUserId: new Map<string, UserProfileRecord>(),
-  sessionsByToken: new Map<string, SessionRecord>(),
+  sessionsByTokenHash: new Map<string, SessionRecord>(),
   teacherRequestsByUserId: new Map<string, TeacherVerificationRequestRecord>(),
 };
 
@@ -41,7 +41,7 @@ export function datLaiKhoAuthGiaLap(): void {
   mockStore.usersById.clear();
   mockStore.userIdsByEmail.clear();
   mockStore.profilesByUserId.clear();
-  mockStore.sessionsByToken.clear();
+  mockStore.sessionsByTokenHash.clear();
   mockStore.teacherRequestsByUserId.clear();
 }
 
@@ -128,24 +128,24 @@ function taoMockAuthRepository(): AuthRepository {
 
     async createSession(input: CreateSessionInput): Promise<SessionRecord> {
       const session: SessionRecord = {
-        token: input.token,
+        tokenHash: input.tokenHash,
         userId: input.userId,
         issuedAt: input.issuedAt,
         expiresAt: input.expiresAt,
         createdAt: input.createdAt,
       };
 
-      mockStore.sessionsByToken.set(session.token, session);
+      mockStore.sessionsByTokenHash.set(session.tokenHash, session);
       return saoChep(session);
     },
 
-    async findSessionByToken(token: string): Promise<SessionRecord | null> {
-      const found = mockStore.sessionsByToken.get(token);
+    async findSessionByTokenHash(tokenHash: string): Promise<SessionRecord | null> {
+      const found = mockStore.sessionsByTokenHash.get(tokenHash);
       return found ? saoChep(found) : null;
     },
 
-    async deleteSession(token: string): Promise<void> {
-      mockStore.sessionsByToken.delete(token);
+    async deleteSessionByTokenHash(tokenHash: string): Promise<void> {
+      mockStore.sessionsByTokenHash.delete(tokenHash);
     },
 
     async upsertTeacherVerificationRequest(
@@ -178,4 +178,3 @@ export function layMockAuthRepository(): AuthRepository {
 
   return cachedMockRepository;
 }
-

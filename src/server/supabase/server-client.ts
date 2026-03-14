@@ -1,26 +1,26 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { layBienMoiTruongServer } from "@/server/config/env";
 
-let cachedServerClient: SupabaseClient | null = null;
+let cachedAdminServerClient: SupabaseClient | null = null;
 
-export function coSupabaseSanSangServer(): boolean {
+export function coSupabaseSanSangAdminServer(): boolean {
   const env = layBienMoiTruongServer();
   return Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
 }
 
-export function taoSupabaseServerClient(): SupabaseClient {
-  if (cachedServerClient) {
-    return cachedServerClient;
+export function taoSupabaseAdminServerClient(): SupabaseClient {
+  if (cachedAdminServerClient) {
+    return cachedAdminServerClient;
   }
 
   const env = layBienMoiTruongServer();
   if (!env.supabaseUrl || !env.supabaseServiceRoleKey) {
     throw new Error(
-      "[supabase-server] Chua du cau hinh NEXT_PUBLIC_SUPABASE_URL hoac SUPABASE_SERVICE_ROLE_KEY.",
+      "[supabase-admin] Chua du cau hinh NEXT_PUBLIC_SUPABASE_URL hoac SUPABASE_SERVICE_ROLE_KEY.",
     );
   }
 
-  cachedServerClient = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
+  cachedAdminServerClient = createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -28,6 +28,13 @@ export function taoSupabaseServerClient(): SupabaseClient {
     },
   });
 
-  return cachedServerClient;
+  return cachedAdminServerClient;
 }
 
+export function coSupabaseSanSangServer(): boolean {
+  return coSupabaseSanSangAdminServer();
+}
+
+export function taoSupabaseServerClient(): SupabaseClient {
+  return taoSupabaseAdminServerClient();
+}
