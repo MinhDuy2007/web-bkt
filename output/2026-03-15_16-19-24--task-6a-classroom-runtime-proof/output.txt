@@ -1,0 +1,34 @@
+﻿[THOI GIAN TEST]
+2026-03-15 16:40:38
+
+[TRANG THAI]
+That bai
+
+[LY DO CHINH]
+Run dau cua task6a runtime proof gap loi ket noi DNS DB hoac typecheck trong luc chay script runner.
+
+[FILE LOG]
+- lint.log
+- typecheck.log
+- test.log
+- runtime-proof.log
+
+[TRICH DOAN LOI]
+
+> web-bkt@0.1.0 test:task6a:runtime
+> node --import tsx scripts/task6a-classroom-runtime-proof.ts
+
+{
+  "cleanup": {
+    "prefix": "task6a-1773566402042",
+    "deletedClasses": 0,
+    "deletedUsers": 0
+  }
+}
+AuthError: [postgres-auth] Loi khi tim tai khoan theo email: getaddrinfo ENOTFOUND aws-1-ap-south-1.pooler.supabase.com
+    at taoLoiPostgres (D:\web-bkt\src\server\auth\repository\postgres-auth-repository.ts:132:9)
+    at Object.findUserByEmail (D:\web-bkt\src\server\auth\repository\postgres-auth-repository.ts:424:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async dangKyTaiKhoan (D:\web-bkt\src\server\auth\service.ts:363:20)
+    at async taoTaiKhoan (D:\web-bkt\scripts\task6a-classroom-runtime-proof.ts:151:21)
+    at async main (D:\web-bkt\scripts\task6a-classroom-runtime-proof.ts:266:29)

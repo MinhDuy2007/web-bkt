@@ -28,6 +28,12 @@ const classFoundationMigrationFile = join(
   "migrations",
   "2026-03-14_22-30-00--classes-foundation.sql",
 );
+const classExamsFoundationMigrationFile = join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "2026-03-15_17-00-00--class-exams-foundation.sql",
+);
 const policyFile = join(process.cwd(), "db", "policies", "2026-03-14_00-30-00--auth-foundation-rls.sql");
 const classPolicyFile = join(
   process.cwd(),
@@ -35,14 +41,22 @@ const classPolicyFile = join(
   "policies",
   "2026-03-14_22-40-00--classes-foundation-rls.sql",
 );
+const classExamsPolicyFile = join(
+  process.cwd(),
+  "db",
+  "policies",
+  "2026-03-15_17-10-00--class-exams-foundation-rls.sql",
+);
 
 const migrationSql = readFileSync(migrationFile, "utf8");
 const sessionHardeningMigrationSql = readFileSync(sessionHardeningMigrationFile, "utf8");
 const teacherGuardMigrationSql = readFileSync(teacherGuardMigrationFile, "utf8");
 const adminReviewMigrationSql = readFileSync(adminReviewMigrationFile, "utf8");
 const classFoundationMigrationSql = readFileSync(classFoundationMigrationFile, "utf8");
+const classExamsFoundationMigrationSql = readFileSync(classExamsFoundationMigrationFile, "utf8");
 const policySql = readFileSync(policyFile, "utf8");
 const classPolicySql = readFileSync(classPolicyFile, "utf8");
+const classExamsPolicySql = readFileSync(classExamsPolicyFile, "utf8");
 
 test("migration phai co cac bang auth nen tang", () => {
   assert.match(migrationSql, /create table if not exists public\.user_accounts/i);
@@ -80,6 +94,17 @@ test("migration classes phai co bang classes va class_members", () => {
   assert.match(classFoundationMigrationSql, /app_is_teacher_approved/i);
 });
 
+test("migration class exams phai co bang class_exams va class_exam_attempts", () => {
+  assert.match(classExamsFoundationMigrationSql, /create table if not exists public\.class_exams/i);
+  assert.match(
+    classExamsFoundationMigrationSql,
+    /create table if not exists public\.class_exam_attempts/i,
+  );
+  assert.match(classExamsFoundationMigrationSql, /uq_class_exams_exam_code/i);
+  assert.match(classExamsFoundationMigrationSql, /uq_class_exam_attempts_exam_user/i);
+  assert.match(classExamsFoundationMigrationSql, /app_is_class_member/i);
+});
+
 test("migration admin review phai ghi actor audit tu reviewed_by khi auth.uid null", () => {
   assert.match(adminReviewMigrationSql, /coalesce\(auth\.uid\(\), new\.reviewed_by, old\.reviewed_by, new\.user_id\)/i);
 });
@@ -102,6 +127,8 @@ test("policy khong duoc mo rong kieu using true", () => {
   assert.ok(!/with check\s*\(\s*true\s*\)/i.test(policySql));
   assert.ok(!/using\s*\(\s*true\s*\)/i.test(classPolicySql));
   assert.ok(!/with check\s*\(\s*true\s*\)/i.test(classPolicySql));
+  assert.ok(!/using\s*\(\s*true\s*\)/i.test(classExamsPolicySql));
+  assert.ok(!/with check\s*\(\s*true\s*\)/i.test(classExamsPolicySql));
 });
 
 test("policy teacher verification phai chan user tu set duyet", () => {
@@ -123,4 +150,12 @@ test("policy classes phai khoa tao lop va membership theo ownership", () => {
   assert.match(classPolicySql, /app_is_teacher_approved/i);
   assert.match(classPolicySql, /p_class_members_insert_controlled_join_or_admin/i);
   assert.match(classPolicySql, /member_role = 'student'/i);
+});
+
+test("policy class exams phai khoa tao de va vao bai theo ownership membership", () => {
+  assert.match(classExamsPolicySql, /p_class_exams_insert_teacher_owner_or_admin/i);
+  assert.match(classExamsPolicySql, /app_is_teacher_approved/i);
+  assert.match(classExamsPolicySql, /p_class_exam_attempts_insert_owner_member_or_admin/i);
+  assert.match(classExamsPolicySql, /ce\.status = 'published'/i);
+  assert.match(classExamsPolicySql, /app_is_class_member/i);
 });

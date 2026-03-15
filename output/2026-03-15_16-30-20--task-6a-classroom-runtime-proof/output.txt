@@ -1,0 +1,17 @@
+﻿[THOI GIAN TEST]
+2026-03-15 16:40:38
+
+[TRANG THAI]
+That bai
+
+[LY DO CHINH]
+Run dau cua task6a runtime proof gap loi ket noi DNS DB hoac typecheck trong luc chay script runner.
+
+[FILE LOG]
+- lint.log
+- typecheck.log
+- test.log
+- runtime-proof.log
+
+[TRICH DOAN LOI]
+

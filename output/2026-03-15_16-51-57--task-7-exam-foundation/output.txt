@@ -1,0 +1,29 @@
+﻿[THOI GIAN TEST]
+2026-03-15 16:54:19
+
+[MUC TIEU TEST]
+Kiem tra nen tang exam theo lop (schema/policy/service/api/test unit) cho Task 7.
+
+[LENH DA CHAY]
+1) npm run db:prepare-migrations
+2) npm run db:push:dry
+3) npm run lint
+4) npm run typecheck
+5) npm run test
+
+[KET QUA TOM TAT]
+- db:prepare-migrations exit code: 0
+- db:push:dry exit code: 0
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+
+[FILE LOG]
+- db-prepare.log
+- db-push-dry.log
+- lint.log
+- typecheck.log
+- test.log
+
+[GHI CHU]
+- Buoc nay chua co anh UI vi pham vi Task 7 hien tai tap trung backend/schema/quyen exam.

@@ -28,6 +28,21 @@ function layClassCodeKey(classCode: string): string {
   return classCode.trim().toUpperCase();
 }
 
+export function layLopHocGiaLapTheoMaLop(classCode: string): ClassRecord | null {
+  const classId = mockClassroomStore.classIdByClassCode.get(layClassCodeKey(classCode));
+  if (!classId) {
+    return null;
+  }
+
+  const classRecord = mockClassroomStore.classesById.get(classId);
+  return classRecord ? saoChep(classRecord) : null;
+}
+
+export function laThanhVienLopHocGiaLap(classId: string, userId: string): boolean {
+  const members = mockClassroomStore.membersByClassId.get(classId) ?? [];
+  return members.some((item) => item.userId === userId);
+}
+
 export function datLaiKhoLopHocGiaLap(): void {
   mockClassroomStore.classesById.clear();
   mockClassroomStore.classIdByClassCode.clear();

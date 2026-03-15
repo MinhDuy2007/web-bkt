@@ -1,0 +1,24 @@
+﻿[THOI GIAN TEST]
+2026-03-15 16:40:38
+
+[TRANG THAI]
+That bai
+
+[LY DO CHINH]
+Run dau cua task6a runtime proof gap loi ket noi DNS DB hoac typecheck trong luc chay script runner.
+
+[FILE LOG]
+- lint.log
+- typecheck.log
+- test.log
+- runtime-proof.log
+
+[TRICH DOAN LOI]
+
+> web-bkt@0.1.0 test:task6a:runtime
+> node --import tsx scripts/task6a-classroom-runtime-proof.ts
+
+Error: getaddrinfo ENOTFOUND aws-1-ap-south-1.pooler.supabase.com
+    at D:\web-bkt\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async main (D:\web-bkt\scripts\task6a-classroom-runtime-proof.ts:457:23)
