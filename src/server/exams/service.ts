@@ -5,9 +5,16 @@ import {
 } from "@/server/auth/permissions";
 import { layPhienDangNhap } from "@/server/auth/service";
 import { layExamRepository } from "@/server/exams/repository";
-import type { CreateClassExamInput } from "@/server/exams/repository/exam-repository";
+import type {
+  AnswerKeyPayload,
+  CreateClassExamInput,
+  CreateExamQuestionInput,
+  UpdateExamQuestionInput,
+} from "@/server/exams/repository/exam-repository";
 import type {
   ClassExamAttemptRecord,
+  ClassExamQuestionItemRecord,
+  ClassExamQuestionType,
   ClassExamStatus,
   MyCreatedClassExamItem,
   StartClassExamResult,
@@ -16,6 +23,7 @@ import type {
 const MA_KY_TU = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MA_LOP_PATTERN = /^[A-Z0-9]{4,16}$/;
 const MA_BAI_KIEM_TRA_PATTERN = /^[A-Z0-9]{6,16}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type TaoBaiKiemTraTheoLopPayload = {
   classCode: string;
@@ -26,6 +34,25 @@ export type TaoBaiKiemTraTheoLopPayload = {
 
 export type VaoBaiKiemTraPayload = {
   examCode: string;
+};
+
+export type TaoCauHoiChoExamPayload = {
+  examCode: string;
+  questionOrder: number;
+  questionType: ClassExamQuestionType;
+  promptText: string;
+  points: number;
+  metadataJson: Record<string, unknown>;
+  answerKey: AnswerKeyPayload;
+};
+
+export type CapNhatCauHoiChoExamPayload = {
+  questionOrder: number;
+  questionType: ClassExamQuestionType;
+  promptText: string;
+  points: number;
+  metadataJson: Record<string, unknown>;
+  answerKey: AnswerKeyPayload;
 };
 
 function docObject(payload: unknown): Record<string, unknown> {
@@ -95,6 +122,57 @@ function docChuoiTuyChon(rawValue: unknown, fieldName: string, maxLength: number
   return normalized;
 }
 
+function docSoDuong(
+  rawValue: unknown,
+  fieldName: string,
+  minValue: number,
+  maxValue: number,
+): number {
+  if (typeof rawValue !== "number" || !Number.isFinite(rawValue)) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai la so hop le.`,
+      statusCode: 400,
+    });
+  }
+
+  if (rawValue < minValue || rawValue > maxValue) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai nam trong khoang ${minValue} den ${maxValue}.`,
+      statusCode: 400,
+    });
+  }
+
+  const rounded = Math.round(rawValue * 100) / 100;
+  return rounded;
+}
+
+function docSoNguyenDuong(
+  rawValue: unknown,
+  fieldName: string,
+  minValue: number,
+  maxValue: number,
+): number {
+  if (typeof rawValue !== "number" || !Number.isInteger(rawValue)) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai la so nguyen hop le.`,
+      statusCode: 400,
+    });
+  }
+
+  if (rawValue < minValue || rawValue > maxValue) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai nam trong khoang ${minValue} den ${maxValue}.`,
+      statusCode: 400,
+    });
+  }
+
+  return rawValue;
+}
+
 function docStatus(rawValue: unknown): ClassExamStatus {
   if (rawValue === undefined || rawValue === null || rawValue === "") {
     return "published";
@@ -111,6 +189,37 @@ function docStatus(rawValue: unknown): ClassExamStatus {
   });
 }
 
+function docQuestionType(rawValue: unknown): ClassExamQuestionType {
+  if (
+    rawValue === "multiple_choice_single" ||
+    rawValue === "true_false" ||
+    rawValue === "short_answer" ||
+    rawValue === "essay_placeholder"
+  ) {
+    return rawValue;
+  }
+
+  throw new AuthError({
+    code: "INVALID_INPUT",
+    message:
+      "Truong questionType chi chap nhan multiple_choice_single, true_false, short_answer, essay_placeholder.",
+    statusCode: 400,
+  });
+}
+
+function docUuid(rawValue: unknown, fieldName: string): string {
+  const normalized = docChuoi(rawValue, fieldName, 36, 36);
+  if (!UUID_PATTERN.test(normalized)) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai la UUID hop le.`,
+      statusCode: 400,
+    });
+  }
+
+  return normalized.toLowerCase();
+}
+
 function taoMaNgauNhien(length: number): string {
   let value = "";
   for (let index = 0; index < length; index += 1) {
@@ -123,6 +232,177 @@ function taoMaNgauNhien(length: number): string {
 
 function taoMaBaiKiemTra(): string {
   return `EX${taoMaNgauNhien(8)}`;
+}
+
+function docMetadataTheoLoaiCauHoi(
+  questionType: ClassExamQuestionType,
+  rawValue: unknown,
+): Record<string, unknown> {
+  const base = rawValue === undefined || rawValue === null ? {} : docObject(rawValue);
+  if (questionType === "multiple_choice_single") {
+    const rawOptions = base.options;
+    if (!Array.isArray(rawOptions)) {
+      throw new AuthError({
+        code: "INVALID_ANSWER_KEY",
+        message: "Cau hoi multiple_choice_single bat buoc co metadata.options.",
+        statusCode: 400,
+      });
+    }
+
+    const options = rawOptions
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+    const uniqueOptions = [...new Set(options)];
+    if (uniqueOptions.length < 2 || uniqueOptions.length > 8) {
+      throw new AuthError({
+        code: "INVALID_ANSWER_KEY",
+        message: "metadata.options cua multiple_choice_single can tu 2 den 8 lua chon.",
+        statusCode: 400,
+      });
+    }
+
+    return {
+      options: uniqueOptions,
+    };
+  }
+
+  if (questionType === "short_answer") {
+    const rawCaseSensitive = base.caseSensitive;
+    if (rawCaseSensitive !== undefined && typeof rawCaseSensitive !== "boolean") {
+      throw new AuthError({
+        code: "INVALID_ANSWER_KEY",
+        message: "metadata.caseSensitive chi chap nhan kieu boolean.",
+        statusCode: 400,
+      });
+    }
+    return {
+      caseSensitive: rawCaseSensitive === true,
+    };
+  }
+
+  if (questionType === "essay_placeholder") {
+    const rawExpectedMinWords = base.expectedMinWords;
+    if (rawExpectedMinWords !== undefined) {
+      if (
+        typeof rawExpectedMinWords !== "number" ||
+        !Number.isInteger(rawExpectedMinWords) ||
+        rawExpectedMinWords < 0 ||
+        rawExpectedMinWords > 20000
+      ) {
+        throw new AuthError({
+          code: "INVALID_ANSWER_KEY",
+          message: "metadata.expectedMinWords khong hop le.",
+          statusCode: 400,
+        });
+      }
+    }
+    return {
+      expectedMinWords: typeof rawExpectedMinWords === "number" ? rawExpectedMinWords : 0,
+    };
+  }
+
+  return {};
+}
+
+function taoLoiDapAnKhongHopLe(message: string): never {
+  throw new AuthError({
+    code: "INVALID_ANSWER_KEY",
+    message,
+    statusCode: 400,
+  });
+}
+
+function chuanHoaAnswerKeyTheoLoaiCauHoi(
+  questionType: ClassExamQuestionType,
+  metadataJson: Record<string, unknown>,
+  rawAnswerKey: unknown,
+): AnswerKeyPayload {
+  const answerData = docObject(rawAnswerKey);
+  const explanationText = docChuoiTuyChon(answerData.explanationText, "explanationText", 2000);
+
+  if (questionType === "multiple_choice_single") {
+    const answerText = docChuoi(
+      answerData.correctAnswerText,
+      "correctAnswerText",
+      1,
+      200,
+    );
+    const options = Array.isArray(metadataJson.options)
+      ? metadataJson.options.filter((item): item is string => typeof item === "string")
+      : [];
+    if (!options.includes(answerText)) {
+      taoLoiDapAnKhongHopLe(
+        "correctAnswerText phai khop mot trong cac lua chon metadata.options.",
+      );
+    }
+
+    return {
+      keyType: questionType,
+      correctAnswerText: answerText,
+      correctAnswerJson: {
+        acceptedOptions: [answerText],
+      },
+      explanationText,
+    };
+  }
+
+  if (questionType === "true_false") {
+    const rawValue = answerData.correctAnswerText;
+    let normalized: "true" | "false";
+    if (rawValue === true) {
+      normalized = "true";
+    } else if (rawValue === false) {
+      normalized = "false";
+    } else if (typeof rawValue === "string") {
+      const lowered = rawValue.trim().toLowerCase();
+      if (lowered === "true" || lowered === "false") {
+        normalized = lowered;
+      } else {
+        taoLoiDapAnKhongHopLe("correctAnswerText cua true_false chi chap nhan true hoac false.");
+      }
+    } else {
+      taoLoiDapAnKhongHopLe("correctAnswerText cua true_false khong hop le.");
+    }
+
+    return {
+      keyType: questionType,
+      correctAnswerText: normalized,
+      correctAnswerJson: {
+        expectedBoolean: normalized === "true",
+      },
+      explanationText,
+    };
+  }
+
+  if (questionType === "short_answer") {
+    const answerText = docChuoi(
+      answerData.correctAnswerText,
+      "correctAnswerText",
+      1,
+      500,
+    );
+    const caseSensitive = metadataJson.caseSensitive === true;
+
+    return {
+      keyType: questionType,
+      correctAnswerText: answerText,
+      correctAnswerJson: {
+        acceptedAnswers: [answerText],
+        caseSensitive,
+      },
+      explanationText,
+    };
+  }
+
+  return {
+    keyType: questionType,
+    correctAnswerText: null,
+    correctAnswerJson: {
+      gradingMode: "manual",
+    },
+    explanationText,
+  };
 }
 
 export function chuanHoaTaoBaiKiemTraTheoLopPayload(payload: unknown): TaoBaiKiemTraTheoLopPayload {
@@ -158,6 +438,52 @@ export function chuanHoaVaoBaiKiemTraPayload(payload: unknown): VaoBaiKiemTraPay
   return {
     examCode,
   };
+}
+
+export function chuanHoaTaoCauHoiChoExamPayload(payload: unknown): TaoCauHoiChoExamPayload {
+  const data = docObject(payload);
+  const examCode = docChuoi(data.examCode, "examCode", 6, 16).toUpperCase();
+  if (!MA_BAI_KIEM_TRA_PATTERN.test(examCode)) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: "Truong examCode khong dung dinh dang.",
+      statusCode: 400,
+    });
+  }
+
+  const questionType = docQuestionType(data.questionType);
+  const metadataJson = docMetadataTheoLoaiCauHoi(questionType, data.metadataJson);
+  const answerKey = chuanHoaAnswerKeyTheoLoaiCauHoi(questionType, metadataJson, data.answerKey);
+
+  return {
+    examCode,
+    questionOrder: docSoNguyenDuong(data.questionOrder, "questionOrder", 1, 5000),
+    questionType,
+    promptText: docChuoi(data.promptText, "promptText", 3, 5000),
+    points: docSoDuong(data.points, "points", 0.1, 1000),
+    metadataJson,
+    answerKey,
+  };
+}
+
+export function chuanHoaCapNhatCauHoiChoExamPayload(payload: unknown): CapNhatCauHoiChoExamPayload {
+  const data = docObject(payload);
+  const questionType = docQuestionType(data.questionType);
+  const metadataJson = docMetadataTheoLoaiCauHoi(questionType, data.metadataJson);
+  const answerKey = chuanHoaAnswerKeyTheoLoaiCauHoi(questionType, metadataJson, data.answerKey);
+
+  return {
+    questionOrder: docSoNguyenDuong(data.questionOrder, "questionOrder", 1, 5000),
+    questionType,
+    promptText: docChuoi(data.promptText, "promptText", 3, 5000),
+    points: docSoDuong(data.points, "points", 0.1, 1000),
+    metadataJson,
+    answerKey,
+  };
+}
+
+export function chuanHoaQuestionId(rawQuestionId: unknown): string {
+  return docUuid(rawQuestionId, "questionId");
 }
 
 export async function taoBaiKiemTraTheoLop(
@@ -226,4 +552,84 @@ export async function lietKeLuotVaoBaiCuaToi(token: string): Promise<ClassExamAt
   const repository = layExamRepository();
 
   return repository.listMyExamAttempts(verifiedSession.user.id);
+}
+
+export async function taoCauHoiChoExam(
+  token: string,
+  payload: TaoCauHoiChoExamPayload,
+): Promise<ClassExamQuestionItemRecord> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+  const nowIso = new Date().toISOString();
+  const normalized = chuanHoaTaoCauHoiChoExamPayload(payload);
+
+  const input: CreateExamQuestionInput = {
+    examCode: normalized.examCode,
+    actorUserId: verifiedSession.user.id,
+    questionOrder: normalized.questionOrder,
+    questionType: normalized.questionType,
+    promptText: normalized.promptText,
+    points: normalized.points,
+    metadataJson: normalized.metadataJson,
+    answerKey: normalized.answerKey,
+    createdAt: nowIso,
+  };
+
+  return repository.createExamQuestion(input);
+}
+
+export async function lietKeCauHoiTheoExam(
+  token: string,
+  examCode: string,
+): Promise<ClassExamQuestionItemRecord[]> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+
+  return repository.listExamQuestionsByExamCode(examCode, verifiedSession.user.id);
+}
+
+export async function capNhatCauHoiChoExam(
+  token: string,
+  questionId: string,
+  payload: CapNhatCauHoiChoExamPayload,
+): Promise<ClassExamQuestionItemRecord> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+  const nowIso = new Date().toISOString();
+  const normalized = chuanHoaCapNhatCauHoiChoExamPayload(payload);
+
+  const input: UpdateExamQuestionInput = {
+    questionId,
+    actorUserId: verifiedSession.user.id,
+    questionOrder: normalized.questionOrder,
+    promptText: normalized.promptText,
+    points: normalized.points,
+    metadataJson: normalized.metadataJson,
+    answerKey: normalized.answerKey,
+    updatedAt: nowIso,
+  };
+
+  return repository.updateExamQuestion(input);
+}
+
+export async function xoaCauHoiChoExam(
+  token: string,
+  questionId: string,
+): Promise<{ deleted: true; questionId: string }> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+
+  await repository.deleteExamQuestion({
+    questionId,
+    actorUserId: verifiedSession.user.id,
+  });
+
+  return {
+    deleted: true,
+    questionId,
+  };
 }
