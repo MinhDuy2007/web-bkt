@@ -1,0 +1,27 @@
+﻿[THOI GIAN TEST]
+2026-03-16 12:16:06
+
+[MUC TIEU TEST]
+Kiem chung runtime DB that cho task 9A: save/list/submit/scoring module attempt answers.
+
+[LENH DA CHAY]
+1) npm run lint
+2) npm run typecheck
+3) npm run test
+4) npm run test:task9a:runtime
+
+[KET QUA TOM TAT]
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- runtime proof exit code: 0
+
+[FILE LOG]
+- lint.log
+- typecheck.log
+- test.log
+- runtime-proof.log
+
+[GHI CHU]
+- Runtime proof script su dung DB dev/test that, tao du lieu test prefix task9a-* va cleanup sau khi chay.
+- Khong co screenshot UI trong buoc nay vi pham vi proof la service/repository/DB.
