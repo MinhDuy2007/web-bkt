@@ -1,0 +1,37 @@
+﻿[THOI GIAN TEST]
+2026-03-16 20:35:50
+
+[MUC TIEU TEST]
+Kiem tra exam player toi thieu cho hoc sinh: load player data, render cau hoi, luu bai qua API hien co va chup giao dien that tren dev/test.
+
+[LENH DA CHAY]
+1) npm run lint
+2) npm run typecheck
+3) npm run test
+4) node --import tsx scripts/task10-exam-player-ui-proof.ts setup
+5) npm run dev -- --hostname 127.0.0.1 --port 3000
+6) npx playwright screenshot --load-storage ...
+
+[KET QUA TOM TAT]
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- ui setup exit code: 0
+- screenshot exit code: 0
+- HTTP status root: 200
+- examCode proof: EXAKP8MNDV
+- Anh giao dien: exam-player.jpg
+
+[FILE LOG]
+- lint.log
+- typecheck.log
+- test.log
+- ui-setup.log
+- dev-server.log
+- dev-server.err.log
+- screenshot.log
+
+[GHI CHU]
+- Screenshot da dung storage state co session cookie HttpOnly cua hoc sinh test.
+- Trang duoc chup o route /bai-thi/[examCode] sau khi attempt da duoc tao san tu script setup.
+- Session token chi duoc luu tam trong file state/storage cua he thong va da duoc xoa sau khi ket thuc.

@@ -8,6 +8,7 @@ import type {
   ClassExamStatus,
   MyCreatedClassExamItem,
   StartClassExamResult,
+  StudentExamPlayerRecord,
   SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
@@ -82,6 +83,11 @@ export type SubmitClassExamAttemptInput = {
   submittedAt: string;
 };
 
+export type GetStudentExamPlayerInput = {
+  examCode: string;
+  actorUserId: string;
+};
+
 export interface ExamRepository {
   createClassExamByTeacher(input: CreateClassExamInput): Promise<ClassExamRecord>;
   listMyCreatedClassExams(userId: string): Promise<MyCreatedClassExamItem[]>;
@@ -98,4 +104,5 @@ export interface ExamRepository {
   upsertAttemptAnswer(input: UpsertAttemptAnswerInput): Promise<ClassExamAttemptAnswerItemRecord>;
   listAttemptAnswers(input: ListAttemptAnswersInput): Promise<ClassExamAttemptAnswerItemRecord[]>;
   submitClassExamAttempt(input: SubmitClassExamAttemptInput): Promise<SubmitClassExamAttemptResult>;
+  getStudentExamPlayer(input: GetStudentExamPlayerInput): Promise<StudentExamPlayerRecord>;
 }

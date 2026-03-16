@@ -5,6 +5,7 @@ import type {
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
+  GetStudentExamPlayerInput,
   ListAttemptAnswersInput,
   SubmitClassExamAttemptInput,
   StartClassExamInput,
@@ -29,6 +30,7 @@ import {
   type ClassExamStatus,
   type MyCreatedClassExamItem,
   type StartClassExamResult,
+  type StudentExamPlayerRecord,
   type SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
@@ -651,6 +653,111 @@ export function taoPostgresExamRepository(): ExamRepository {
         return result.rows.map((row) => mapClassExamAttemptRow(row));
       } catch (error) {
         taoLoiPostgresExam("liet ke luot vao bai cua toi", error);
+      }
+    },
+
+    async getStudentExamPlayer(input: GetStudentExamPlayerInput): Promise<StudentExamPlayerRecord> {
+      try {
+        const examResult = await pool.query<ClassExamRow>(
+          `select *
+           from public.class_exams
+           where exam_code = $1
+           limit 1`,
+          [input.examCode.trim().toUpperCase()],
+        );
+        const examRow = examResult.rows[0];
+        if (!examRow) {
+          throw new AuthError({
+            code: "EXAM_NOT_FOUND",
+            message: "Khong tim thay bai kiem tra theo ma da nhap.",
+            statusCode: 404,
+          });
+        }
+
+        const membershipResult = await pool.query<{ class_id: string }>(
+          `select class_id
+           from public.class_members
+           where class_id = $1
+             and user_id = $2
+           limit 1`,
+          [examRow.class_id, input.actorUserId],
+        );
+        if (membershipResult.rowCount !== 1) {
+          throw new AuthError({
+            code: "CLASS_MEMBERSHIP_REQUIRED",
+            message: "Chi thanh vien lop moi duoc truy cap bai kiem tra nay.",
+            statusCode: 403,
+          });
+        }
+
+        const attemptResult = await pool.query<ClassExamAttemptRow>(
+          `select *
+           from public.class_exam_attempts
+           where class_exam_id = $1
+             and user_id = $2
+           limit 1`,
+          [examRow.id, input.actorUserId],
+        );
+        const attemptRow = attemptResult.rows[0];
+        if (!attemptRow) {
+          if (examRow.status !== "published") {
+            throw new AuthError({
+              code: "EXAM_NOT_AVAILABLE",
+              message: "Bai kiem tra hien khong mo de vao lam.",
+              statusCode: 409,
+            });
+          }
+
+          return {
+            exam: {
+              id: examRow.id,
+              examCode: examRow.exam_code,
+              title: examRow.title,
+              description: examRow.description,
+              status: docGiaTriEnum(examRow.status, CLASS_EXAM_STATUSES, "status"),
+            },
+            attempt: null,
+            questions: [],
+            answers: [],
+            canStart: true,
+            isLocked: false,
+          };
+        }
+
+        const questionsResult = await pool.query<ExamQuestionRow>(
+          `select *
+           from public.exam_questions
+           where class_exam_id = $1
+           order by question_order asc, created_at asc`,
+          [examRow.id],
+        );
+        const answersResult = await pool.query<AttemptAnswerRow>(
+          `select *
+           from public.class_exam_attempt_answers
+           where attempt_id = $1
+           order by created_at asc`,
+          [attemptRow.id],
+        );
+
+        return {
+          exam: {
+            id: examRow.id,
+            examCode: examRow.exam_code,
+            title: examRow.title,
+            description: examRow.description,
+            status: docGiaTriEnum(examRow.status, CLASS_EXAM_STATUSES, "status"),
+          },
+          attempt: mapClassExamAttemptRow(attemptRow),
+          questions: questionsResult.rows.map((row) => mapExamQuestionRow(row)),
+          answers: answersResult.rows.map((row) => mapAttemptAnswerRow(row)),
+          canStart: false,
+          isLocked: attemptRow.status === "submitted",
+        };
+      } catch (error) {
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("tai du lieu exam player cho hoc sinh", error);
       }
     },
 

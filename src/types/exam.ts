@@ -98,6 +98,23 @@ export type ClassExamAttemptAnswerItemRecord = {
   question: ClassExamQuestionRecord;
 };
 
+export type ClassExamPlayerExamRecord = {
+  id: string;
+  examCode: string;
+  title: string;
+  description: string | null;
+  status: ClassExamStatus;
+};
+
+export type StudentExamPlayerRecord = {
+  exam: ClassExamPlayerExamRecord;
+  attempt: ClassExamAttemptRecord | null;
+  questions: ClassExamQuestionRecord[];
+  answers: ClassExamAttemptAnswerRecord[];
+  canStart: boolean;
+  isLocked: boolean;
+};
+
 export type SubmitClassExamAttemptResult = {
   attempt: ClassExamAttemptRecord;
   scoreSummary: {

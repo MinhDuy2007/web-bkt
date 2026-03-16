@@ -10,6 +10,7 @@ import type {
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
+  GetStudentExamPlayerInput,
   ListAttemptAnswersInput,
   SubmitClassExamAttemptInput,
   StartClassExamInput,
@@ -26,6 +27,7 @@ import type {
   ClassExamRecord,
   MyCreatedClassExamItem,
   StartClassExamResult,
+  StudentExamPlayerRecord,
   SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
@@ -322,6 +324,81 @@ function taoMockExamRepository(): ExamRepository {
         .filter((item) => item.userId === userId)
         .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
         .map((item) => saoChep(item));
+    },
+
+    async getStudentExamPlayer(input: GetStudentExamPlayerInput): Promise<StudentExamPlayerRecord> {
+      const examId = mockExamStore.examIdByExamCode.get(keyExamCode(input.examCode));
+      if (!examId) {
+        throw new AuthError({
+          code: "EXAM_NOT_FOUND",
+          message: "Khong tim thay bai kiem tra theo ma da nhap.",
+          statusCode: 404,
+        });
+      }
+
+      const exam = batBuocExamTonTai(examId);
+      if (!laThanhVienLopHocGiaLap(exam.classId, input.actorUserId)) {
+        throw new AuthError({
+          code: "CLASS_MEMBERSHIP_REQUIRED",
+          message: "Chi thanh vien lop moi duoc truy cap bai kiem tra nay.",
+          statusCode: 403,
+        });
+      }
+
+      const attemptId = mockExamStore.attemptIdByExamAndUser.get(keyAttempt(exam.id, input.actorUserId));
+      const attempt = attemptId ? (mockExamStore.attemptsById.get(attemptId) ?? null) : null;
+      if (!attempt) {
+        if (exam.status !== "published") {
+          throw new AuthError({
+            code: "EXAM_NOT_AVAILABLE",
+            message: "Bai kiem tra hien khong mo de vao lam.",
+            statusCode: 409,
+          });
+        }
+
+        return {
+          exam: {
+            id: exam.id,
+            examCode: exam.examCode,
+            title: exam.title,
+            description: exam.description,
+            status: exam.status,
+          },
+          attempt: null,
+          questions: [],
+          answers: [],
+          canStart: true,
+          isLocked: false,
+        };
+      }
+
+      const questionIds = layDanhSachQuestionIdTheoExam(exam.id);
+      const questions = Array.from(questionIds)
+        .map((questionId) => mockExamStore.questionsById.get(questionId))
+        .filter((item): item is ClassExamQuestionRecord => Boolean(item))
+        .sort((a, b) => a.questionOrder - b.questionOrder)
+        .map((item) => saoChep(item));
+      const answerIds = layDanhSachAnswerIdTheoAttempt(attempt.id);
+      const answers = Array.from(answerIds)
+        .map((answerId) => mockExamStore.attemptAnswersById.get(answerId))
+        .filter((item): item is ClassExamAttemptAnswerRecord => Boolean(item))
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        .map((item) => saoChep(item));
+
+      return {
+        exam: {
+          id: exam.id,
+          examCode: exam.examCode,
+          title: exam.title,
+          description: exam.description,
+          status: exam.status,
+        },
+        attempt: saoChep(attempt),
+        questions,
+        answers,
+        canStart: false,
+        isLocked: attempt.status === "submitted",
+      };
     },
 
     async createExamQuestion(input: CreateExamQuestionInput): Promise<ClassExamQuestionItemRecord> {

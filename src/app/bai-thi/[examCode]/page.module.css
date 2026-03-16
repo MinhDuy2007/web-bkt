@@ -1,0 +1,312 @@
+.page {
+  min-height: 100vh;
+  padding: 32px 20px 56px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(20, 184, 166, 0.16), transparent 34%),
+    radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.18), transparent 28%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 13, 24, 1));
+}
+
+.shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.header {
+  display: grid;
+  gap: 10px;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.5rem);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 760px;
+}
+
+.stack {
+  display: grid;
+  gap: 18px;
+}
+
+.heroCard,
+.summaryCard,
+.questionCard,
+.stateCard {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 94%, #050b18 6%);
+  box-shadow: var(--shadow-card);
+}
+
+.heroCard {
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+}
+
+.heroHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heroCode {
+  margin: 0 0 8px;
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.2vw, 1.9rem);
+}
+
+.heroDescription {
+  margin: 10px 0 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  max-width: 720px;
+}
+
+.statusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+}
+
+.layoutGrid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: 20px;
+}
+
+.summaryCard {
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.questionColumn {
+  display: grid;
+  gap: 14px;
+}
+
+.questionCard {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.questionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.questionIndex {
+  margin: 0 0 6px;
+  color: var(--color-accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+}
+
+.questionTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.questionMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.pointsTag,
+.typeTag,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.pointsTag {
+  background: color-mix(in srgb, #14b8a6 18%, #142136 82%);
+  color: #bff7f0;
+}
+
+.typeTag {
+  background: color-mix(in srgb, #3b82f6 18%, #142136 82%);
+  color: #dbeafe;
+}
+
+.pillActive {
+  background: color-mix(in srgb, #10b981 20%, #162334 80%);
+  color: #bbf7d0;
+}
+
+.pillMuted {
+  background: color-mix(in srgb, #64748b 18%, #162334 82%);
+  color: #e2e8f0;
+}
+
+.pillLocked {
+  background: color-mix(in srgb, #ef4444 18%, #162334 82%);
+  color: #fecaca;
+}
+
+.pillInfo {
+  background: color-mix(in srgb, #f59e0b 18%, #162334 82%);
+  color: #fde68a;
+}
+
+.optionList {
+  display: grid;
+  gap: 10px;
+}
+
+.optionItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 96%, #07111f 4%);
+  color: var(--color-text-primary);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #0d162a;
+  color: var(--color-text-primary);
+  padding: 12px 14px;
+}
+
+.textarea {
+  min-height: 160px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.questionFooter,
+.heroActions,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.actions {
+  margin-top: 4px;
+}
+
+.button {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #132239;
+  color: var(--color-text-primary);
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  border-color: color-mix(in srgb, #14b8a6 68%, var(--color-border) 32%);
+  background: color-mix(in srgb, #0f766e 76%, #0d1628 24%);
+}
+
+.button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.inlineMessage {
+  margin: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+
+.inlineMessageSuccess {
+  border: 1px solid color-mix(in srgb, #22c55e 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #14532d 72%, var(--color-bg-elevated) 28%);
+}
+
+.inlineMessageError {
+  border: 1px solid color-mix(in srgb, #ef4444 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #7f1d1d 70%, var(--color-bg-elevated) 30%);
+}
+
+.inlineMessageInfo {
+  border: 1px solid color-mix(in srgb, #3b82f6 72%, var(--color-border) 28%);
+  background: color-mix(in srgb, #1d4ed8 20%, var(--color-bg-elevated) 80%);
+}
+
+.stateCard {
+  padding: 24px 18px;
+  color: var(--color-text-secondary);
+  text-align: center;
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 920px) {
+  .layoutGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+}

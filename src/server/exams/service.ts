@@ -9,6 +9,7 @@ import type {
   AnswerKeyPayload,
   CreateClassExamInput,
   CreateExamQuestionInput,
+  GetStudentExamPlayerInput,
   SubmitClassExamAttemptInput,
   UpsertAttemptAnswerInput,
   UpdateExamQuestionInput,
@@ -21,6 +22,7 @@ import type {
   ClassExamStatus,
   MyCreatedClassExamItem,
   StartClassExamResult,
+  StudentExamPlayerRecord,
   SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
@@ -775,4 +777,20 @@ export async function nopBaiKiemTra(
   payload: NopBaiKiemTraPayload,
 ): Promise<SubmitClassExamAttemptResult> {
   return chamDiemNenChoAttempt(token, payload);
+}
+
+export async function taiDuLieuLamBaiTheoExamCode(
+  token: string,
+  payload: VaoBaiKiemTraPayload,
+): Promise<StudentExamPlayerRecord> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenNguoiDungCoBan(session);
+  const repository = layExamRepository();
+
+  const input: GetStudentExamPlayerInput = {
+    examCode: payload.examCode,
+    actorUserId: verifiedSession.user.id,
+  };
+
+  return repository.getStudentExamPlayer(input);
 }
