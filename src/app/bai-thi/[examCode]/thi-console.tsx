@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   coThayDoiChuaLuu,
@@ -460,6 +461,11 @@ export function ExamPlayerToiThieu({ examCode }: ExamPlayerProps) {
                     >
                       Làm mới trạng thái
                     </button>
+                    {duLieuPlayer.isLocked ? (
+                      <Link href={`/ket-qua/${examCode}`} className={`${styles.button} ${styles.buttonPrimary}`}>
+                        Xem kết quả
+                      </Link>
+                    ) : null}
                   </div>
                 </section>
               </aside>

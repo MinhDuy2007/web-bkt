@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$testDir = Join-Path (Join-Path (Get-Location) "output") ($timestamp + "--task-10-exam-player-ui-min")
+$testDir = Join-Path (Join-Path (Get-Location) "output") ($timestamp + "--task-11-exam-result-ui-min")
 New-Item -ItemType Directory -Path $testDir -Force | Out-Null
 
 $lintLog = Join-Path $testDir "lint.log"
@@ -12,12 +12,12 @@ $devLog = Join-Path $testDir "dev-server.log"
 $devErrLog = Join-Path $testDir "dev-server.err.log"
 $screenshotLog = Join-Path $testDir "screenshot.log"
 $cleanupLog = Join-Path $testDir "ui-cleanup.log"
-$pngPath = Join-Path $testDir "exam-player.png"
-$jpgPath = Join-Path $testDir "exam-player.jpg"
+$pngPath = Join-Path $testDir "exam-result.png"
+$jpgPath = Join-Path $testDir "exam-result.jpg"
 $outputPath = Join-Path $testDir "output.txt"
 
-$statePath = Join-Path $env:TEMP ("task10-exam-player-state-" + [guid]::NewGuid().ToString() + ".json")
-$storagePath = Join-Path $env:TEMP ("task10-exam-player-storage-" + [guid]::NewGuid().ToString() + ".json")
+$statePath = Join-Path $env:TEMP ("task11-exam-result-state-" + [guid]::NewGuid().ToString() + ".json")
+$storagePath = Join-Path $env:TEMP ("task11-exam-result-storage-" + [guid]::NewGuid().ToString() + ".json")
 $devProcess = $null
 $serverReady = $false
 $setupState = $null
@@ -49,7 +49,7 @@ try {
   $lintExit = ChayLenhGhiLog "npm run lint" $lintLog "lint that bai"
   $typeExit = ChayLenhGhiLog "npm run typecheck" $typeLog "typecheck that bai"
   $testExit = ChayLenhGhiLog "npm run test" $testLog "test that bai"
-  $setupExit = ChayLenhGhiLog "node --import tsx scripts/task10-exam-player-ui-proof.ts setup `"$statePath`"" $setupLog "ui setup that bai"
+  $setupExit = ChayLenhGhiLog "node --import tsx scripts/task11-exam-result-ui-proof.ts setup `"$statePath`"" $setupLog "ui setup that bai"
 
   $setupState = Get-Content -Raw $statePath | ConvertFrom-Json
   if (-not $setupState.examCode -or -not $setupState.sessionToken) {
@@ -99,11 +99,11 @@ try {
     throw "Khong the khoi dong dev server trong thoi gian cho phep."
   }
 
-  $examUrl = "http://127.0.0.1:3000/bai-thi/$($setupState.examCode)"
-  cmd /c "npx playwright screenshot --browser chromium --channel msedge --device `"Desktop Chrome`" --color-scheme dark --load-storage `"$storagePath`" --wait-for-selector `"[data-testid='question-card']`" --wait-for-timeout 1500 --full-page `"$examUrl`" `"$pngPath`" > `"$screenshotLog`" 2>&1"
+  $examUrl = "http://127.0.0.1:3000/ket-qua/$($setupState.examCode)"
+  cmd /c "npx playwright screenshot --browser chromium --channel msedge --device `"Desktop Chrome`" --color-scheme dark --load-storage `"$storagePath`" --wait-for-selector `"[data-testid='review-item']`" --wait-for-timeout 1500 --full-page `"$examUrl`" `"$pngPath`" > `"$screenshotLog`" 2>&1"
   $screenshotExit = $LASTEXITCODE
   if ($screenshotExit -ne 0) {
-    throw "Chup screenshot exam player that bai (exit code: $screenshotExit)"
+    throw "Chup screenshot exam result that bai (exit code: $screenshotExit)"
   }
 
   Add-Type -AssemblyName System.Drawing
@@ -123,13 +123,13 @@ try {
 $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 
 [MUC TIEU TEST]
-Kiem tra exam player toi thieu cho hoc sinh: load player data, render cau hoi, luu bai qua API hien co va chup giao dien that tren dev/test.
+Kiem tra trang ket qua sau nop va review attempt toi thieu cho hoc sinh: doc du lieu tu server, hien thi score/status va review answer that tren dev/test.
 
 [LENH DA CHAY]
 1) npm run lint
 2) npm run typecheck
 3) npm run test
-4) node --import tsx scripts/task10-exam-player-ui-proof.ts setup
+4) node --import tsx scripts/task11-exam-result-ui-proof.ts setup
 5) npm run dev -- --hostname 127.0.0.1 --port 3000
 6) npx playwright screenshot --load-storage ...
 
@@ -141,7 +141,7 @@ Kiem tra exam player toi thieu cho hoc sinh: load player data, render cau hoi, l
 - screenshot exit code: $screenshotExit
 - HTTP status root: $httpStatus
 - examCode proof: $($setupState.examCode)
-- Anh giao dien: exam-player.jpg
+- Anh giao dien: exam-result.jpg
 
 [FILE LOG]
 - lint.log
@@ -154,14 +154,14 @@ Kiem tra exam player toi thieu cho hoc sinh: load player data, render cau hoi, l
 
 [GHI CHU]
 - Screenshot da dung storage state co session cookie HttpOnly cua hoc sinh test.
-- Trang duoc chup o route /bai-thi/[examCode] sau khi attempt da duoc tao san tu script setup.
+- Trang duoc chup o route /ket-qua/[examCode] sau khi attempt da duoc nop bai trong script setup.
 - Session token chi duoc luu tam trong file state/storage cua he thong va da duoc xoa sau khi ket thuc.
 "@ | Set-Content -Path $outputPath -Encoding UTF8
 }
 finally {
   try {
     if (Test-Path $statePath) {
-      cmd /c "node --import tsx scripts/task10-exam-player-ui-proof.ts cleanup `"$statePath`" > `"$cleanupLog`" 2>&1"
+      cmd /c "node --import tsx scripts/task11-exam-result-ui-proof.ts cleanup `"$statePath`" > `"$cleanupLog`" 2>&1"
     }
   }
   catch {

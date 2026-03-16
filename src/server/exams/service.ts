@@ -23,6 +23,7 @@ import type {
   MyCreatedClassExamItem,
   StartClassExamResult,
   StudentExamPlayerRecord,
+  StudentExamResultRecord,
   SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
@@ -793,4 +794,68 @@ export async function taiDuLieuLamBaiTheoExamCode(
   };
 
   return repository.getStudentExamPlayer(input);
+}
+
+export async function taiKetQuaBaiLamTheoExamCode(
+  token: string,
+  payload: VaoBaiKiemTraPayload,
+): Promise<StudentExamResultRecord> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenNguoiDungCoBan(session);
+  const repository = layExamRepository();
+
+  const playerData = await repository.getStudentExamPlayer({
+    examCode: payload.examCode,
+    actorUserId: verifiedSession.user.id,
+  });
+
+  if (!playerData.attempt) {
+    return {
+      exam: playerData.exam,
+      attempt: null,
+      summary: {
+        totalQuestionCount: 0,
+        answeredQuestionCount: 0,
+        submitted: false,
+        submittedAt: null,
+        autoGradedScore: null,
+        maxAutoGradableScore: null,
+        pendingManualGradingCount: 0,
+      },
+      reviewItems: [],
+    };
+  }
+
+  const answerItems = await repository.listAttemptAnswers({
+    attemptId: playerData.attempt.id,
+    actorUserId: verifiedSession.user.id,
+  });
+  const answerByQuestionId = new Map(answerItems.map((item) => [item.question.id, item.answer]));
+  const reviewItems = playerData.questions.map((question) => ({
+    question,
+    answer: answerByQuestionId.get(question.id) ?? null,
+  }));
+  const answeredQuestionCount = reviewItems.filter((item) => {
+    if (!item.answer) {
+      return false;
+    }
+
+    const answerText = item.answer.answerText?.trim() ?? "";
+    return answerText.length > 0 || Object.keys(item.answer.answerJson).length > 0;
+  }).length;
+
+  return {
+    exam: playerData.exam,
+    attempt: playerData.attempt,
+    summary: {
+      totalQuestionCount: reviewItems.length,
+      answeredQuestionCount,
+      submitted: playerData.attempt.status === "submitted",
+      submittedAt: playerData.attempt.submittedAt,
+      autoGradedScore: playerData.attempt.autoGradedScore,
+      maxAutoGradableScore: playerData.attempt.maxAutoGradedScore,
+      pendingManualGradingCount: playerData.attempt.pendingManualGradingCount,
+    },
+    reviewItems,
+  };
 }

@@ -115,6 +115,26 @@ export type StudentExamPlayerRecord = {
   isLocked: boolean;
 };
 
+export type StudentExamReviewItemRecord = {
+  question: ClassExamQuestionRecord;
+  answer: ClassExamAttemptAnswerRecord | null;
+};
+
+export type StudentExamResultRecord = {
+  exam: ClassExamPlayerExamRecord;
+  attempt: ClassExamAttemptRecord | null;
+  summary: {
+    totalQuestionCount: number;
+    answeredQuestionCount: number;
+    submitted: boolean;
+    submittedAt: string | null;
+    autoGradedScore: number | null;
+    maxAutoGradableScore: number | null;
+    pendingManualGradingCount: number;
+  };
+  reviewItems: StudentExamReviewItemRecord[];
+};
+
 export type SubmitClassExamAttemptResult = {
   attempt: ClassExamAttemptRecord;
   scoreSummary: {

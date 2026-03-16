@@ -1,0 +1,37 @@
+﻿[THOI GIAN TEST]
+2026-03-16 22:38:35
+
+[MUC TIEU TEST]
+Kiem tra trang ket qua sau nop va review attempt toi thieu cho hoc sinh: doc du lieu tu server, hien thi score/status va review answer that tren dev/test.
+
+[LENH DA CHAY]
+1) npm run lint
+2) npm run typecheck
+3) npm run test
+4) node --import tsx scripts/task11-exam-result-ui-proof.ts setup
+5) npm run dev -- --hostname 127.0.0.1 --port 3000
+6) npx playwright screenshot --load-storage ...
+
+[KET QUA TOM TAT]
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- ui setup exit code: 0
+- screenshot exit code: 0
+- HTTP status root: 200
+- examCode proof: EXB4WG29X5
+- Anh giao dien: exam-result.jpg
+
+[FILE LOG]
+- lint.log
+- typecheck.log
+- test.log
+- ui-setup.log
+- dev-server.log
+- dev-server.err.log
+- screenshot.log
+
+[GHI CHU]
+- Screenshot da dung storage state co session cookie HttpOnly cua hoc sinh test.
+- Trang duoc chup o route /ket-qua/[examCode] sau khi attempt da duoc nop bai trong script setup.
+- Session token chi duoc luu tam trong file state/storage cua he thong va da duoc xoa sau khi ket thuc.
