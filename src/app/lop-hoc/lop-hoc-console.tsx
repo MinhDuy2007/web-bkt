@@ -224,8 +224,7 @@ export function QuanLyLopHocToiThieu() {
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Tham gia lớp bằng mã</h2>
         <p className={styles.sectionText}>
-          Nhập mã lớp và mã tham gia do giáo viên cung cấp. Hệ thống sẽ kiểm tra lại ở backend trước
-          khi thêm thành viên.
+          Nhập mã lớp và mã tham gia do giáo viên cung cấp.
         </p>
 
         <div className={styles.grid}>

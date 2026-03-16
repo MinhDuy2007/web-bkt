@@ -20,6 +20,8 @@
     "test:task6a:runtime": "node --import tsx scripts/task6a-classroom-runtime-proof.ts",
     "test:task6a:proof": "powershell -ExecutionPolicy Bypass -File scripts/run-task6a-classroom-runtime-proof.ps1",
     "test:task7:foundation": "powershell -ExecutionPolicy Bypass -File scripts/run-task7-exam-foundation-test.ps1",
+    "test:task7a:runtime": "node --import tsx scripts/task7a-exam-runtime-proof.ts",
+    "test:task7a:proof": "powershell -ExecutionPolicy Bypass -File scripts/run-task7a-exam-runtime-proof.ps1",
     "test": "npm run test:auth && npm run test:schema && npm run test:runtime-security && npm run test:classes && npm run test:exams && npm run test:admin-review",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
