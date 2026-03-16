@@ -40,6 +40,12 @@ const examQuestionsFoundationMigrationFile = join(
   "migrations",
   "2026-03-16_11-20-00--exam-questions-foundation.sql",
 );
+const examAttemptAnswersMigrationFile = join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "2026-03-16_12-10-00--exam-attempt-answers-and-scoring-foundation.sql",
+);
 const policyFile = join(process.cwd(), "db", "policies", "2026-03-14_00-30-00--auth-foundation-rls.sql");
 const classPolicyFile = join(
   process.cwd(),
@@ -59,6 +65,12 @@ const examQuestionsPolicyFile = join(
   "policies",
   "2026-03-16_11-30-00--exam-questions-foundation-rls.sql",
 );
+const examAttemptAnswersPolicyFile = join(
+  process.cwd(),
+  "db",
+  "policies",
+  "2026-03-16_12-20-00--exam-attempt-answers-and-scoring-foundation-rls.sql",
+);
 
 const migrationSql = readFileSync(migrationFile, "utf8");
 const sessionHardeningMigrationSql = readFileSync(sessionHardeningMigrationFile, "utf8");
@@ -67,10 +79,12 @@ const adminReviewMigrationSql = readFileSync(adminReviewMigrationFile, "utf8");
 const classFoundationMigrationSql = readFileSync(classFoundationMigrationFile, "utf8");
 const classExamsFoundationMigrationSql = readFileSync(classExamsFoundationMigrationFile, "utf8");
 const examQuestionsFoundationMigrationSql = readFileSync(examQuestionsFoundationMigrationFile, "utf8");
+const examAttemptAnswersMigrationSql = readFileSync(examAttemptAnswersMigrationFile, "utf8");
 const policySql = readFileSync(policyFile, "utf8");
 const classPolicySql = readFileSync(classPolicyFile, "utf8");
 const classExamsPolicySql = readFileSync(classExamsPolicyFile, "utf8");
 const examQuestionsPolicySql = readFileSync(examQuestionsPolicyFile, "utf8");
+const examAttemptAnswersPolicySql = readFileSync(examAttemptAnswersPolicyFile, "utf8");
 
 test("migration phai co cac bang auth nen tang", () => {
   assert.match(migrationSql, /create table if not exists public\.user_accounts/i);
@@ -134,6 +148,28 @@ test("migration exam questions phai co bang exam_questions va exam_answer_keys",
   assert.match(examQuestionsFoundationMigrationSql, /app_guard_exam_answer_key_type/i);
 });
 
+test("migration attempt answers phai co bang tra loi va cot scoring attempt", () => {
+  assert.match(
+    examAttemptAnswersMigrationSql,
+    /create table if not exists public\.class_exam_attempt_answers/i,
+  );
+  assert.match(
+    examAttemptAnswersMigrationSql,
+    /add column if not exists auto_graded_score numeric\(10, 2\)/i,
+  );
+  assert.match(
+    examAttemptAnswersMigrationSql,
+    /add column if not exists max_auto_graded_score numeric\(10, 2\)/i,
+  );
+  assert.match(
+    examAttemptAnswersMigrationSql,
+    /add column if not exists pending_manual_grading_count integer/i,
+  );
+  assert.match(examAttemptAnswersMigrationSql, /uq_class_exam_attempt_answers_attempt_question/i);
+  assert.match(examAttemptAnswersMigrationSql, /app_is_attempt_owner/i);
+  assert.match(examAttemptAnswersMigrationSql, /app_guard_attempt_answer_consistency/i);
+});
+
 test("migration admin review phai ghi actor audit tu reviewed_by khi auth.uid null", () => {
   assert.match(adminReviewMigrationSql, /coalesce\(auth\.uid\(\), new\.reviewed_by, old\.reviewed_by, new\.user_id\)/i);
 });
@@ -160,6 +196,8 @@ test("policy khong duoc mo rong kieu using true", () => {
   assert.ok(!/with check\s*\(\s*true\s*\)/i.test(classExamsPolicySql));
   assert.ok(!/using\s*\(\s*true\s*\)/i.test(examQuestionsPolicySql));
   assert.ok(!/with check\s*\(\s*true\s*\)/i.test(examQuestionsPolicySql));
+  assert.ok(!/using\s*\(\s*true\s*\)/i.test(examAttemptAnswersPolicySql));
+  assert.ok(!/with check\s*\(\s*true\s*\)/i.test(examAttemptAnswersPolicySql));
 });
 
 test("policy teacher verification phai chan user tu set duyet", () => {
@@ -197,4 +235,25 @@ test("policy exam questions phai khoa ownership exam content", () => {
   assert.match(examQuestionsPolicySql, /p_exam_answer_keys_insert_owner_or_admin/i);
   assert.match(examQuestionsPolicySql, /p_exam_answer_keys_update_owner_or_admin/i);
   assert.match(examQuestionsPolicySql, /app_is_exam_owner/i);
+});
+
+test("policy attempt answers phai khoa owner attempt va started status", () => {
+  assert.match(
+    examAttemptAnswersPolicySql,
+    /p_class_exam_attempt_answers_select_owner_or_admin/i,
+  );
+  assert.match(
+    examAttemptAnswersPolicySql,
+    /p_class_exam_attempt_answers_insert_owner_started_or_admin/i,
+  );
+  assert.match(
+    examAttemptAnswersPolicySql,
+    /p_class_exam_attempt_answers_update_owner_started_or_admin/i,
+  );
+  assert.match(
+    examAttemptAnswersPolicySql,
+    /p_class_exam_attempt_answers_delete_owner_started_or_admin/i,
+  );
+  assert.match(examAttemptAnswersPolicySql, /app_is_attempt_owner/i);
+  assert.match(examAttemptAnswersPolicySql, /cea\.status = 'started'/i);
 });

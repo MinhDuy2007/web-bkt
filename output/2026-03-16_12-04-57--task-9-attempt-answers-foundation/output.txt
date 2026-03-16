@@ -1,0 +1,32 @@
+﻿[THOI GIAN TEST]
+2026-03-16 12:05:24
+
+[MUC TIEU TEST]
+Kiem chung task 9 backend-first: migration attempt answers, submit flow, scoring foundation va quyen attempt owner.
+
+[LENH DA CHAY]
+1) npm run db:prepare-migrations
+2) npm run db:push:dry
+3) npm run db:push
+4) npm run lint
+5) npm run typecheck
+6) npm run test
+
+[KET QUA TOM TAT]
+- db:prepare-migrations exit code: 0
+- db:push:dry exit code: 0
+- db:push exit code: 0
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+
+[FILE LOG]
+- db-prepare.log
+- db-push-dry.log
+- db-push.log
+- lint.log
+- typecheck.log
+- test.log
+
+[GHI CHU]
+- Khong co screenshot UI trong task nay vi pham vi backend-first.

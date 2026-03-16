@@ -1,4 +1,5 @@
 import type {
+  ClassExamAttemptAnswerItemRecord,
   ClassExamAnswerKeyType,
   ClassExamAttemptRecord,
   ClassExamQuestionItemRecord,
@@ -7,6 +8,7 @@ import type {
   ClassExamStatus,
   MyCreatedClassExamItem,
   StartClassExamResult,
+  SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
 export type CreateClassExamInput = {
@@ -60,6 +62,26 @@ export type DeleteExamQuestionInput = {
   actorUserId: string;
 };
 
+export type UpsertAttemptAnswerInput = {
+  attemptId: string;
+  questionId: string;
+  actorUserId: string;
+  answerText: string | null;
+  answerJson: Record<string, unknown>;
+  updatedAt: string;
+};
+
+export type ListAttemptAnswersInput = {
+  attemptId: string;
+  actorUserId: string;
+};
+
+export type SubmitClassExamAttemptInput = {
+  attemptId: string;
+  actorUserId: string;
+  submittedAt: string;
+};
+
 export interface ExamRepository {
   createClassExamByTeacher(input: CreateClassExamInput): Promise<ClassExamRecord>;
   listMyCreatedClassExams(userId: string): Promise<MyCreatedClassExamItem[]>;
@@ -73,4 +95,7 @@ export interface ExamRepository {
   ): Promise<ClassExamQuestionItemRecord[]>;
   updateExamQuestion(input: UpdateExamQuestionInput): Promise<ClassExamQuestionItemRecord>;
   deleteExamQuestion(input: DeleteExamQuestionInput): Promise<void>;
+  upsertAttemptAnswer(input: UpsertAttemptAnswerInput): Promise<ClassExamAttemptAnswerItemRecord>;
+  listAttemptAnswers(input: ListAttemptAnswersInput): Promise<ClassExamAttemptAnswerItemRecord[]>;
+  submitClassExamAttempt(input: SubmitClassExamAttemptInput): Promise<SubmitClassExamAttemptResult>;
 }

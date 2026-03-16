@@ -4,15 +4,21 @@ import {
   laThanhVienLopHocGiaLap,
   layLopHocGiaLapTheoMaLop,
 } from "@/server/classes/repository/mock-classroom-repository";
+import { chamDiemNenChoCauHoi, lamTronDiemNen } from "@/server/exams/scoring";
 import type {
-  CreateExamQuestionInput,
   CreateClassExamInput,
+  CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
+  ListAttemptAnswersInput,
+  SubmitClassExamAttemptInput,
   StartClassExamInput,
+  UpsertAttemptAnswerInput,
   UpdateExamQuestionInput,
 } from "@/server/exams/repository/exam-repository";
 import type {
+  ClassExamAttemptAnswerItemRecord,
+  ClassExamAttemptAnswerRecord,
   ClassExamAnswerKeyRecord,
   ClassExamAttemptRecord,
   ClassExamQuestionItemRecord,
@@ -20,6 +26,7 @@ import type {
   ClassExamRecord,
   MyCreatedClassExamItem,
   StartClassExamResult,
+  SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
 type ExamStore = {
@@ -30,6 +37,9 @@ type ExamStore = {
   attemptIdByExamAndUser: Map<string, string>;
   questionsById: Map<string, ClassExamQuestionRecord>;
   answerKeysByQuestionId: Map<string, ClassExamAnswerKeyRecord>;
+  attemptAnswersById: Map<string, ClassExamAttemptAnswerRecord>;
+  attemptAnswerIdByAttemptAndQuestion: Map<string, string>;
+  attemptAnswerIdsByAttemptId: Map<string, Set<string>>;
   questionIdsByExamId: Map<string, Set<string>>;
   questionIdByExamAndOrder: Map<string, string>;
 };
@@ -42,6 +52,9 @@ const mockExamStore: ExamStore = {
   attemptIdByExamAndUser: new Map<string, string>(),
   questionsById: new Map<string, ClassExamQuestionRecord>(),
   answerKeysByQuestionId: new Map<string, ClassExamAnswerKeyRecord>(),
+  attemptAnswersById: new Map<string, ClassExamAttemptAnswerRecord>(),
+  attemptAnswerIdByAttemptAndQuestion: new Map<string, string>(),
+  attemptAnswerIdsByAttemptId: new Map<string, Set<string>>(),
   questionIdsByExamId: new Map<string, Set<string>>(),
   questionIdByExamAndOrder: new Map<string, string>(),
 };
@@ -58,8 +71,22 @@ function keyAttempt(classExamId: string, userId: string): string {
   return `${classExamId}:${userId}`;
 }
 
+function keyAttemptQuestion(attemptId: string, questionId: string): string {
+  return `${attemptId}:${questionId}`;
+}
+
 function keyQuestionOrder(classExamId: string, questionOrder: number): string {
   return `${classExamId}:${questionOrder}`;
+}
+
+function layDanhSachAnswerIdTheoAttempt(attemptId: string): Set<string> {
+  let answerIds = mockExamStore.attemptAnswerIdsByAttemptId.get(attemptId);
+  if (!answerIds) {
+    answerIds = new Set<string>();
+    mockExamStore.attemptAnswerIdsByAttemptId.set(attemptId, answerIds);
+  }
+
+  return answerIds;
 }
 
 function batBuocExamTonTai(classExamId: string): ClassExamRecord {
@@ -98,6 +125,42 @@ function batBuocQuestionTonTai(questionId: string): ClassExamQuestionRecord {
     });
   }
   return question;
+}
+
+function batBuocAttemptTonTai(attemptId: string): ClassExamAttemptRecord {
+  const attempt = mockExamStore.attemptsById.get(attemptId);
+  if (!attempt) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_NOT_FOUND",
+      message: "Khong tim thay luot lam bai theo attemptId.",
+      statusCode: 404,
+    });
+  }
+
+  return attempt;
+}
+
+function batBuocQuyenTruyCapAttempt(attemptId: string, actorUserId: string): ClassExamAttemptRecord {
+  const attempt = batBuocAttemptTonTai(attemptId);
+  if (attempt.userId !== actorUserId) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_PERMISSION_REQUIRED",
+      message: "Tai khoan hien tai khong duoc thao tac tren attempt nay.",
+      statusCode: 403,
+    });
+  }
+
+  return attempt;
+}
+
+function batBuocAttemptChuaNop(attempt: ClassExamAttemptRecord): void {
+  if (attempt.status !== "started") {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_ALREADY_SUBMITTED",
+      message: "Attempt da nop bai, khong duoc sua cau tra loi.",
+      statusCode: 409,
+    });
+  }
 }
 
 function layDanhSachQuestionIdTheoExam(classExamId: string): Set<string> {
@@ -228,6 +291,9 @@ function taoMockExamRepository(): ExamRepository {
         status: "started",
         startedAt: input.startedAt,
         submittedAt: null,
+        autoGradedScore: null,
+        maxAutoGradedScore: null,
+        pendingManualGradingCount: 0,
         createdAt: input.startedAt,
         updatedAt: input.startedAt,
       };
@@ -404,10 +470,181 @@ function taoMockExamRepository(): ExamRepository {
 
       mockExamStore.questionsById.delete(question.id);
       mockExamStore.answerKeysByQuestionId.delete(question.id);
+      for (const attemptId of mockExamStore.attemptsById.keys()) {
+        const answerKey = keyAttemptQuestion(attemptId, question.id);
+        const answerId = mockExamStore.attemptAnswerIdByAttemptAndQuestion.get(answerKey);
+        if (!answerId) {
+          continue;
+        }
+        mockExamStore.attemptAnswerIdByAttemptAndQuestion.delete(answerKey);
+        mockExamStore.attemptAnswersById.delete(answerId);
+        layDanhSachAnswerIdTheoAttempt(attemptId).delete(answerId);
+      }
       mockExamStore.questionIdByExamAndOrder.delete(
         keyQuestionOrder(question.classExamId, question.questionOrder),
       );
       layDanhSachQuestionIdTheoExam(question.classExamId).delete(question.id);
+    },
+
+    async upsertAttemptAnswer(
+      input: UpsertAttemptAnswerInput,
+    ): Promise<ClassExamAttemptAnswerItemRecord> {
+      const attempt = batBuocQuyenTruyCapAttempt(input.attemptId, input.actorUserId);
+      batBuocAttemptChuaNop(attempt);
+
+      const question = batBuocQuestionTonTai(input.questionId);
+      if (question.classExamId !== attempt.classExamId) {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_QUESTION_MISMATCH",
+          message: "questionId khong thuoc bai kiem tra cua attempt.",
+          statusCode: 400,
+        });
+      }
+
+      const lookupKey = keyAttemptQuestion(input.attemptId, input.questionId);
+      const existingAnswerId = mockExamStore.attemptAnswerIdByAttemptAndQuestion.get(lookupKey);
+      const nowIso = input.updatedAt;
+
+      if (existingAnswerId) {
+        const existing = mockExamStore.attemptAnswersById.get(existingAnswerId);
+        if (!existing) {
+          throw new AuthError({
+            code: "POSTGRES_DATA_INVALID",
+            message: "Kho gia lap bi sai lien ket answer.",
+            statusCode: 500,
+          });
+        }
+
+        const updated: ClassExamAttemptAnswerRecord = {
+          ...existing,
+          answerText: input.answerText,
+          answerJson: saoChep(input.answerJson),
+          awardedPoints: null,
+          scoredAt: null,
+          updatedAt: nowIso,
+        };
+        mockExamStore.attemptAnswersById.set(updated.id, updated);
+        return {
+          answer: saoChep(updated),
+          question: saoChep(question),
+        };
+      }
+
+      const created: ClassExamAttemptAnswerRecord = {
+        id: randomUUID(),
+        attemptId: input.attemptId,
+        questionId: input.questionId,
+        answerText: input.answerText,
+        answerJson: saoChep(input.answerJson),
+        awardedPoints: null,
+        scoredAt: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      mockExamStore.attemptAnswersById.set(created.id, created);
+      mockExamStore.attemptAnswerIdByAttemptAndQuestion.set(lookupKey, created.id);
+      layDanhSachAnswerIdTheoAttempt(input.attemptId).add(created.id);
+
+      return {
+        answer: saoChep(created),
+        question: saoChep(question),
+      };
+    },
+
+    async listAttemptAnswers(
+      input: ListAttemptAnswersInput,
+    ): Promise<ClassExamAttemptAnswerItemRecord[]> {
+      const attempt = batBuocQuyenTruyCapAttempt(input.attemptId, input.actorUserId);
+      const answerIds = layDanhSachAnswerIdTheoAttempt(attempt.id);
+      const items: ClassExamAttemptAnswerItemRecord[] = [];
+      for (const answerId of answerIds) {
+        const answer = mockExamStore.attemptAnswersById.get(answerId);
+        if (!answer) {
+          continue;
+        }
+        const question = mockExamStore.questionsById.get(answer.questionId);
+        if (!question || question.classExamId !== attempt.classExamId) {
+          continue;
+        }
+        items.push({
+          answer: saoChep(answer),
+          question: saoChep(question),
+        });
+      }
+
+      return items.sort((a, b) => a.question.questionOrder - b.question.questionOrder);
+    },
+
+    async submitClassExamAttempt(
+      input: SubmitClassExamAttemptInput,
+    ): Promise<SubmitClassExamAttemptResult> {
+      const attempt = batBuocQuyenTruyCapAttempt(input.attemptId, input.actorUserId);
+      batBuocAttemptChuaNop(attempt);
+
+      const questionIds = layDanhSachQuestionIdTheoExam(attempt.classExamId);
+      let awardedScore = 0;
+      let maxAutoGradableScore = 0;
+      let pendingManualGradingCount = 0;
+      let autoGradedQuestionCount = 0;
+      let answeredQuestionCount = 0;
+
+      for (const questionId of questionIds) {
+        const question = mockExamStore.questionsById.get(questionId);
+        const answerKey = mockExamStore.answerKeysByQuestionId.get(questionId);
+        if (!question || !answerKey) {
+          continue;
+        }
+
+        const attemptQuestionKey = keyAttemptQuestion(attempt.id, question.id);
+        const answerId = mockExamStore.attemptAnswerIdByAttemptAndQuestion.get(attemptQuestionKey);
+        const answer = answerId ? (mockExamStore.attemptAnswersById.get(answerId) ?? null) : null;
+        if (answer) {
+          answeredQuestionCount += 1;
+        }
+
+        const ketQuaCham = chamDiemNenChoCauHoi(question, answerKey, answer);
+        awardedScore += ketQuaCham.awardedPoints;
+        maxAutoGradableScore += ketQuaCham.maxAutoPoints;
+        if (ketQuaCham.laCauChamTuDong) {
+          autoGradedQuestionCount += 1;
+        }
+        if (ketQuaCham.laCauTuLuanChoChamTay) {
+          pendingManualGradingCount += 1;
+        }
+
+        if (answer) {
+          const updatedAnswer: ClassExamAttemptAnswerRecord = {
+            ...answer,
+            awardedPoints: lamTronDiemNen(ketQuaCham.awardedPoints),
+            scoredAt: input.submittedAt,
+            updatedAt: input.submittedAt,
+          };
+          mockExamStore.attemptAnswersById.set(updatedAnswer.id, updatedAnswer);
+        }
+      }
+
+      const updatedAttempt: ClassExamAttemptRecord = {
+        ...attempt,
+        status: "submitted",
+        submittedAt: input.submittedAt,
+        autoGradedScore: lamTronDiemNen(awardedScore),
+        maxAutoGradedScore: lamTronDiemNen(maxAutoGradableScore),
+        pendingManualGradingCount,
+        updatedAt: input.submittedAt,
+      };
+      mockExamStore.attemptsById.set(updatedAttempt.id, updatedAttempt);
+
+      return {
+        attempt: saoChep(updatedAttempt),
+        scoreSummary: {
+          awardedScore: lamTronDiemNen(awardedScore),
+          maxAutoGradableScore: lamTronDiemNen(maxAutoGradableScore),
+          pendingManualGradingCount,
+          autoGradedQuestionCount,
+          answeredQuestionCount,
+          totalQuestionCount: questionIds.size,
+        },
+      };
     },
   };
 }
@@ -422,6 +659,9 @@ export function datLaiKhoBaiKiemTraGiaLap(): void {
   mockExamStore.attemptIdByExamAndUser.clear();
   mockExamStore.questionsById.clear();
   mockExamStore.answerKeysByQuestionId.clear();
+  mockExamStore.attemptAnswersById.clear();
+  mockExamStore.attemptAnswerIdByAttemptAndQuestion.clear();
+  mockExamStore.attemptAnswerIdsByAttemptId.clear();
   mockExamStore.questionIdsByExamId.clear();
   mockExamStore.questionIdByExamAndOrder.clear();
 }

@@ -5,14 +5,20 @@ import type {
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
+  ListAttemptAnswersInput,
+  SubmitClassExamAttemptInput,
   StartClassExamInput,
+  UpsertAttemptAnswerInput,
   UpdateExamQuestionInput,
 } from "@/server/exams/repository/exam-repository";
+import { chamDiemNenChoCauHoi, lamTronDiemNen } from "@/server/exams/scoring";
 import {
   CLASS_EXAM_ANSWER_KEY_TYPES,
   CLASS_EXAM_ATTEMPT_STATUSES,
   CLASS_EXAM_QUESTION_TYPES,
   CLASS_EXAM_STATUSES,
+  type ClassExamAttemptAnswerItemRecord,
+  type ClassExamAttemptAnswerRecord,
   type ClassExamAnswerKeyRecord,
   type ClassExamAttemptRecord,
   type ClassExamAttemptStatus,
@@ -23,6 +29,7 @@ import {
   type ClassExamStatus,
   type MyCreatedClassExamItem,
   type StartClassExamResult,
+  type SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
 type ClassExamRow = {
@@ -44,6 +51,9 @@ type ClassExamAttemptRow = {
   status: string;
   started_at: string;
   submitted_at: string | null;
+  auto_graded_score: string | number | null;
+  max_auto_graded_score: string | number | null;
+  pending_manual_grading_count: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -97,6 +107,32 @@ type ExamQuestionOwnerRow = {
   created_by_user_id: string;
 };
 
+type AttemptOwnerRow = {
+  id: string;
+  class_exam_id: string;
+  user_id: string;
+  status: string;
+  submitted_at: string | null;
+  started_at: string;
+  auto_graded_score: string | number | null;
+  max_auto_graded_score: string | number | null;
+  pending_manual_grading_count: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type AttemptAnswerRow = {
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  answer_text: string | null;
+  answer_json: Record<string, unknown> | null;
+  awarded_points: string | number | null;
+  scored_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 function docGiaTriEnum<T extends readonly string[]>(
   value: string,
   validValues: T,
@@ -141,6 +177,23 @@ function docPoints(value: string | number): number {
   return parsed;
 }
 
+function docDiemKhongAm(value: string | number | null, fieldName: string): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new AuthError({
+      code: "POSTGRES_DATA_INVALID",
+      message: `[postgres-exam] Truong ${fieldName} khong hop le: ${String(value)}.`,
+      statusCode: 500,
+    });
+  }
+
+  return parsed;
+}
+
 function mapClassExamRow(row: ClassExamRow): ClassExamRecord {
   return {
     id: row.id,
@@ -167,6 +220,9 @@ function mapClassExamAttemptRow(row: ClassExamAttemptRow): ClassExamAttemptRecor
     ) as ClassExamAttemptStatus,
     startedAt: row.started_at,
     submittedAt: row.submitted_at,
+    autoGradedScore: docDiemKhongAm(row.auto_graded_score, "auto_graded_score"),
+    maxAutoGradedScore: docDiemKhongAm(row.max_auto_graded_score, "max_auto_graded_score"),
+    pendingManualGradingCount: row.pending_manual_grading_count ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -208,6 +264,20 @@ function mapExamAnswerKeyRow(row: ExamAnswerKeyRow): ClassExamAnswerKeyRecord {
   };
 }
 
+function mapAttemptAnswerRow(row: AttemptAnswerRow): ClassExamAttemptAnswerRecord {
+  return {
+    id: row.id,
+    attemptId: row.attempt_id,
+    questionId: row.question_id,
+    answerText: row.answer_text,
+    answerJson: docJsonObject(row.answer_json, "answer_json"),
+    awardedPoints: docDiemKhongAm(row.awarded_points, "awarded_points"),
+    scoredAt: row.scored_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function taoLoiPostgresExam(action: string, error: unknown): never {
   const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
   const message =
@@ -244,6 +314,22 @@ function taoLoiPostgresExam(action: string, error: unknown): never {
       code: "INVALID_ANSWER_KEY",
       message: "Loai dap an khong khop voi loai cau hoi.",
       statusCode: 400,
+    });
+  }
+
+  if (message.includes("ATTEMPT_QUESTION_MISMATCH")) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_QUESTION_MISMATCH",
+      message: "questionId khong thuoc bai kiem tra cua attempt.",
+      statusCode: 400,
+    });
+  }
+
+  if (message.includes("ATTEMPT_ALREADY_SUBMITTED")) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_ALREADY_SUBMITTED",
+      message: "Attempt da nop bai, khong duoc cap nhat du lieu.",
+      statusCode: 409,
     });
   }
 
@@ -292,6 +378,52 @@ async function batBuocExamTonTaiVaCoQuyenSua(
   }
 
   return examRow;
+}
+
+async function batBuocAttemptTonTaiVaCoQuyenTruyCap(
+  client: {
+    query: (queryText: string, values?: unknown[]) => Promise<{ rows: AttemptOwnerRow[] }>;
+  },
+  attemptId: string,
+  actorUserId: string,
+  lock: boolean,
+): Promise<AttemptOwnerRow> {
+  const attemptResult = await client.query(
+    `select
+       id,
+       class_exam_id,
+       user_id,
+       status,
+       submitted_at,
+       started_at,
+       auto_graded_score,
+       max_auto_graded_score,
+       pending_manual_grading_count,
+       created_at,
+       updated_at
+     from public.class_exam_attempts
+     where id = $1
+     limit 1${lock ? " for update" : ""}`,
+    [attemptId],
+  );
+  const attemptRow = attemptResult.rows[0];
+  if (!attemptRow) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_NOT_FOUND",
+      message: "Khong tim thay luot lam bai theo attemptId.",
+      statusCode: 404,
+    });
+  }
+
+  if (attemptRow.user_id !== actorUserId) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_PERMISSION_REQUIRED",
+      message: "Tai khoan hien tai khong duoc thao tac tren attempt nay.",
+      statusCode: 403,
+    });
+  }
+
+  return attemptRow;
 }
 
 export function taoPostgresExamRepository(): ExamRepository {
@@ -454,10 +586,13 @@ export function taoPostgresExamRepository(): ExamRepository {
              status,
              started_at,
              submitted_at,
+             auto_graded_score,
+             max_auto_graded_score,
+             pending_manual_grading_count,
              created_at,
              updated_at
            )
-           values ($1, $2, 'started', $3, null, $3, $3)
+           values ($1, $2, 'started', $3, null, null, null, 0, $3, $3)
            returning *`,
           [examRow.id, input.userId, input.startedAt],
         );
@@ -842,6 +977,320 @@ export function taoPostgresExamRepository(): ExamRepository {
           throw error;
         }
         taoLoiPostgresExam("xoa cau hoi exam", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async upsertAttemptAnswer(
+      input: UpsertAttemptAnswerInput,
+    ): Promise<ClassExamAttemptAnswerItemRecord> {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+
+        const attemptRow = await batBuocAttemptTonTaiVaCoQuyenTruyCap(
+          client,
+          input.attemptId,
+          input.actorUserId,
+          true,
+        );
+        if (attemptRow.status !== "started") {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_ALREADY_SUBMITTED",
+            message: "Attempt da nop bai, khong duoc sua cau tra loi.",
+            statusCode: 409,
+          });
+        }
+
+        const questionResult = await client.query<ExamQuestionRow>(
+          `select *
+           from public.exam_questions
+           where id = $1
+             and class_exam_id = $2
+           limit 1`,
+          [input.questionId, attemptRow.class_exam_id],
+        );
+        const questionRow = questionResult.rows[0];
+        if (!questionRow) {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_QUESTION_MISMATCH",
+            message: "questionId khong thuoc bai kiem tra cua attempt.",
+            statusCode: 400,
+          });
+        }
+
+        const answerResult = await client.query<AttemptAnswerRow>(
+          `insert into public.class_exam_attempt_answers (
+             attempt_id,
+             question_id,
+             answer_text,
+             answer_json,
+             awarded_points,
+             scored_at,
+             created_at,
+             updated_at
+           )
+           values ($1, $2, $3, $4::jsonb, null, null, $5, $5)
+           on conflict (attempt_id, question_id)
+           do update
+             set answer_text = excluded.answer_text,
+                 answer_json = excluded.answer_json,
+                 awarded_points = null,
+                 scored_at = null,
+                 updated_at = excluded.updated_at
+           returning *`,
+          [
+            input.attemptId,
+            input.questionId,
+            input.answerText,
+            JSON.stringify(input.answerJson),
+            input.updatedAt,
+          ],
+        );
+        const answerRow = answerResult.rows[0];
+        if (!answerRow) {
+          throw new AuthError({
+            code: "POSTGRES_DATA_INVALID",
+            message: "[postgres-exam] Khong luu duoc cau tra loi theo attempt.",
+            statusCode: 500,
+          });
+        }
+
+        await client.query("commit");
+        return {
+          answer: mapAttemptAnswerRow(answerRow),
+          question: mapExamQuestionRow(questionRow),
+        };
+      } catch (error) {
+        await rollbackAnToan(client);
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("luu cau tra loi theo attempt", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async listAttemptAnswers(
+      input: ListAttemptAnswersInput,
+    ): Promise<ClassExamAttemptAnswerItemRecord[]> {
+      const client = await pool.connect();
+      try {
+        const attemptRow = await batBuocAttemptTonTaiVaCoQuyenTruyCap(
+          client,
+          input.attemptId,
+          input.actorUserId,
+          false,
+        );
+
+        const result = await client.query<
+          AttemptAnswerRow & {
+            question_order: number;
+            question_type: string;
+            prompt_text: string;
+            points: string | number;
+            metadata_json: Record<string, unknown> | null;
+            created_by_user_id: string;
+            question_created_at: string;
+            question_updated_at: string;
+          }
+        >(
+          `select
+             aa.*,
+             q.question_order,
+             q.question_type,
+             q.prompt_text,
+             q.points,
+             q.metadata_json,
+             q.created_by_user_id,
+             q.created_at as question_created_at,
+             q.updated_at as question_updated_at
+           from public.class_exam_attempt_answers aa
+           inner join public.exam_questions q on q.id = aa.question_id
+           where aa.attempt_id = $1
+             and q.class_exam_id = $2
+           order by q.question_order asc, aa.created_at asc`,
+          [attemptRow.id, attemptRow.class_exam_id],
+        );
+
+        return result.rows.map((row) => ({
+          answer: mapAttemptAnswerRow(row),
+          question: mapExamQuestionRow({
+            id: row.question_id,
+            class_exam_id: attemptRow.class_exam_id,
+            question_order: row.question_order,
+            question_type: row.question_type,
+            prompt_text: row.prompt_text,
+            points: row.points,
+            metadata_json: row.metadata_json,
+            created_by_user_id: row.created_by_user_id,
+            created_at: row.question_created_at,
+            updated_at: row.question_updated_at,
+          }),
+        }));
+      } catch (error) {
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("liet ke cau tra loi theo attempt", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async submitClassExamAttempt(
+      input: SubmitClassExamAttemptInput,
+    ): Promise<SubmitClassExamAttemptResult> {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+
+        const attemptRow = await batBuocAttemptTonTaiVaCoQuyenTruyCap(
+          client,
+          input.attemptId,
+          input.actorUserId,
+          true,
+        );
+        if (attemptRow.status !== "started") {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_ALREADY_SUBMITTED",
+            message: "Attempt da nop bai, khong the nop lai.",
+            statusCode: 409,
+          });
+        }
+
+        const questionRowsResult = await client.query<
+          ExamQuestionRow & {
+            answer_key_id: string;
+            answer_key_type: string;
+            answer_key_correct_answer_text: string | null;
+            answer_key_correct_answer_json: Record<string, unknown> | null;
+            answer_key_explanation_text: string | null;
+            answer_key_created_at: string;
+            answer_key_updated_at: string;
+          }
+        >(
+          `select
+             q.*,
+             ak.id as answer_key_id,
+             ak.key_type as answer_key_type,
+             ak.correct_answer_text as answer_key_correct_answer_text,
+             ak.correct_answer_json as answer_key_correct_answer_json,
+             ak.explanation_text as answer_key_explanation_text,
+             ak.created_at as answer_key_created_at,
+             ak.updated_at as answer_key_updated_at
+           from public.exam_questions q
+           inner join public.exam_answer_keys ak on ak.question_id = q.id
+           where q.class_exam_id = $1
+           order by q.question_order asc, q.created_at asc`,
+          [attemptRow.class_exam_id],
+        );
+
+        const answerRowsResult = await client.query<AttemptAnswerRow>(
+          `select *
+           from public.class_exam_attempt_answers
+           where attempt_id = $1`,
+          [attemptRow.id],
+        );
+        const answerByQuestionId = new Map<string, AttemptAnswerRow>();
+        for (const answerRow of answerRowsResult.rows) {
+          answerByQuestionId.set(answerRow.question_id, answerRow);
+        }
+
+        let awardedScore = 0;
+        let maxAutoGradableScore = 0;
+        let pendingManualGradingCount = 0;
+        let autoGradedQuestionCount = 0;
+        let answeredQuestionCount = 0;
+
+        for (const row of questionRowsResult.rows) {
+          const question = mapExamQuestionRow(row);
+          const answerKey = mapExamAnswerKeyRow({
+            id: row.answer_key_id,
+            question_id: row.id,
+            key_type: row.answer_key_type,
+            correct_answer_text: row.answer_key_correct_answer_text,
+            correct_answer_json: row.answer_key_correct_answer_json,
+            explanation_text: row.answer_key_explanation_text,
+            created_at: row.answer_key_created_at,
+            updated_at: row.answer_key_updated_at,
+          });
+          const answerRow = answerByQuestionId.get(question.id);
+          const answer = answerRow ? mapAttemptAnswerRow(answerRow) : null;
+          if (answer) {
+            answeredQuestionCount += 1;
+          }
+
+          const ketQuaCham = chamDiemNenChoCauHoi(question, answerKey, answer);
+          awardedScore += ketQuaCham.awardedPoints;
+          maxAutoGradableScore += ketQuaCham.maxAutoPoints;
+          if (ketQuaCham.laCauChamTuDong) {
+            autoGradedQuestionCount += 1;
+          }
+          if (ketQuaCham.laCauTuLuanChoChamTay) {
+            pendingManualGradingCount += 1;
+          }
+
+          if (answerRow) {
+            await client.query(
+              `update public.class_exam_attempt_answers
+               set awarded_points = $2,
+                   scored_at = $3,
+                   updated_at = $3
+               where id = $1`,
+              [answerRow.id, lamTronDiemNen(ketQuaCham.awardedPoints), input.submittedAt],
+            );
+          }
+        }
+
+        const attemptResult = await client.query<ClassExamAttemptRow>(
+          `update public.class_exam_attempts
+           set
+             status = 'submitted',
+             submitted_at = $2,
+             auto_graded_score = $3,
+             max_auto_graded_score = $4,
+             pending_manual_grading_count = $5,
+             updated_at = $2
+           where id = $1
+           returning *`,
+          [
+            attemptRow.id,
+            input.submittedAt,
+            lamTronDiemNen(awardedScore),
+            lamTronDiemNen(maxAutoGradableScore),
+            pendingManualGradingCount,
+          ],
+        );
+        const updatedAttemptRow = attemptResult.rows[0];
+        if (!updatedAttemptRow) {
+          throw new AuthError({
+            code: "POSTGRES_DATA_INVALID",
+            message: "[postgres-exam] Khong cap nhat duoc trang thai submit cho attempt.",
+            statusCode: 500,
+          });
+        }
+
+        await client.query("commit");
+        return {
+          attempt: mapClassExamAttemptRow(updatedAttemptRow),
+          scoreSummary: {
+            awardedScore: lamTronDiemNen(awardedScore),
+            maxAutoGradableScore: lamTronDiemNen(maxAutoGradableScore),
+            pendingManualGradingCount,
+            autoGradedQuestionCount,
+            answeredQuestionCount,
+            totalQuestionCount: questionRowsResult.rows.length,
+          },
+        };
+      } catch (error) {
+        await rollbackAnToan(client);
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("nop bai va cham diem nen cho attempt", error);
       } finally {
         client.release();
       }

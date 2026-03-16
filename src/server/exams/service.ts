@@ -9,15 +9,19 @@ import type {
   AnswerKeyPayload,
   CreateClassExamInput,
   CreateExamQuestionInput,
+  SubmitClassExamAttemptInput,
+  UpsertAttemptAnswerInput,
   UpdateExamQuestionInput,
 } from "@/server/exams/repository/exam-repository";
 import type {
+  ClassExamAttemptAnswerItemRecord,
   ClassExamAttemptRecord,
   ClassExamQuestionItemRecord,
   ClassExamQuestionType,
   ClassExamStatus,
   MyCreatedClassExamItem,
   StartClassExamResult,
+  SubmitClassExamAttemptResult,
 } from "@/types/exam";
 
 const MA_KY_TU = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -55,11 +59,38 @@ export type CapNhatCauHoiChoExamPayload = {
   answerKey: AnswerKeyPayload;
 };
 
+export type LuuCauTraLoiTheoAttemptPayload = {
+  attemptId: string;
+  questionId: string;
+  answerText: string | null;
+  answerJson: Record<string, unknown>;
+};
+
+export type NopBaiKiemTraPayload = {
+  attemptId: string;
+};
+
 function docObject(payload: unknown): Record<string, unknown> {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new AuthError({
       code: "INVALID_INPUT",
       message: "Du lieu dau vao khong hop le.",
+      statusCode: 400,
+    });
+  }
+
+  return payload as Record<string, unknown>;
+}
+
+function docObjectTuyChon(payload: unknown, fieldName: string): Record<string, unknown> {
+  if (payload === undefined || payload === null) {
+    return {};
+  }
+
+  if (typeof payload !== "object" || Array.isArray(payload)) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai la object neu duoc cung cap.`,
       statusCode: 400,
     });
   }
@@ -95,6 +126,35 @@ function docChuoi(
 
 function docChuoiTuyChon(rawValue: unknown, fieldName: string, maxLength: number): string | null {
   if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return null;
+  }
+
+  if (typeof rawValue !== "string") {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} phai la chuoi neu duoc cung cap.`,
+      statusCode: 400,
+    });
+  }
+
+  const normalized = rawValue.trim();
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  if (normalized.length > maxLength) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: `Truong ${fieldName} khong duoc vuot qua ${maxLength} ky tu.`,
+      statusCode: 400,
+    });
+  }
+
+  return normalized;
+}
+
+function docChuoiTraLoi(rawValue: unknown, fieldName: string, maxLength: number): string | null {
+  if (rawValue === null || rawValue === undefined) {
     return null;
   }
 
@@ -486,6 +546,29 @@ export function chuanHoaQuestionId(rawQuestionId: unknown): string {
   return docUuid(rawQuestionId, "questionId");
 }
 
+export function chuanHoaAttemptId(rawAttemptId: unknown): string {
+  return docUuid(rawAttemptId, "attemptId");
+}
+
+export function chuanHoaLuuCauTraLoiTheoAttemptPayload(
+  payload: unknown,
+): LuuCauTraLoiTheoAttemptPayload {
+  const data = docObject(payload);
+  return {
+    attemptId: chuanHoaAttemptId(data.attemptId),
+    questionId: chuanHoaQuestionId(data.questionId),
+    answerText: docChuoiTraLoi(data.answerText, "answerText", 20000),
+    answerJson: docObjectTuyChon(data.answerJson, "answerJson"),
+  };
+}
+
+export function chuanHoaNopBaiKiemTraPayload(payload: unknown): NopBaiKiemTraPayload {
+  const data = docObject(payload);
+  return {
+    attemptId: chuanHoaAttemptId(data.attemptId),
+  };
+}
+
 export async function taoBaiKiemTraTheoLop(
   token: string,
   payload: TaoBaiKiemTraTheoLopPayload,
@@ -632,4 +715,64 @@ export async function xoaCauHoiChoExam(
     deleted: true,
     questionId,
   };
+}
+
+export async function luuCauTraLoiTheoAttempt(
+  token: string,
+  payload: LuuCauTraLoiTheoAttemptPayload,
+): Promise<ClassExamAttemptAnswerItemRecord> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenNguoiDungCoBan(session);
+  const repository = layExamRepository();
+  const normalized = chuanHoaLuuCauTraLoiTheoAttemptPayload(payload);
+
+  const input: UpsertAttemptAnswerInput = {
+    attemptId: normalized.attemptId,
+    questionId: normalized.questionId,
+    actorUserId: verifiedSession.user.id,
+    answerText: normalized.answerText,
+    answerJson: normalized.answerJson,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return repository.upsertAttemptAnswer(input);
+}
+
+export async function lietKeCauTraLoiTheoAttempt(
+  token: string,
+  attemptId: string,
+): Promise<ClassExamAttemptAnswerItemRecord[]> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenNguoiDungCoBan(session);
+  const repository = layExamRepository();
+
+  return repository.listAttemptAnswers({
+    attemptId: chuanHoaAttemptId(attemptId),
+    actorUserId: verifiedSession.user.id,
+  });
+}
+
+export async function chamDiemNenChoAttempt(
+  token: string,
+  payload: NopBaiKiemTraPayload,
+): Promise<SubmitClassExamAttemptResult> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenNguoiDungCoBan(session);
+  const repository = layExamRepository();
+  const normalized = chuanHoaNopBaiKiemTraPayload(payload);
+
+  const input: SubmitClassExamAttemptInput = {
+    attemptId: normalized.attemptId,
+    actorUserId: verifiedSession.user.id,
+    submittedAt: new Date().toISOString(),
+  };
+
+  return repository.submitClassExamAttempt(input);
+}
+
+export async function nopBaiKiemTra(
+  token: string,
+  payload: NopBaiKiemTraPayload,
+): Promise<SubmitClassExamAttemptResult> {
+  return chamDiemNenChoAttempt(token, payload);
 }

@@ -34,6 +34,9 @@ export type ClassExamAttemptRecord = {
   status: ClassExamAttemptStatus;
   startedAt: string;
   submittedAt: string | null;
+  autoGradedScore: number | null;
+  maxAutoGradedScore: number | null;
+  pendingManualGradingCount: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -47,6 +50,18 @@ export type MyCreatedClassExamItem = {
 export type StartClassExamResult = {
   exam: ClassExamRecord;
   attempt: ClassExamAttemptRecord;
+};
+
+export type ClassExamAttemptAnswerRecord = {
+  id: string;
+  attemptId: string;
+  questionId: string;
+  answerText: string | null;
+  answerJson: Record<string, unknown>;
+  awardedPoints: number | null;
+  scoredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ClassExamQuestionRecord = {
@@ -76,4 +91,21 @@ export type ClassExamAnswerKeyRecord = {
 export type ClassExamQuestionItemRecord = {
   question: ClassExamQuestionRecord;
   answerKey: ClassExamAnswerKeyRecord;
+};
+
+export type ClassExamAttemptAnswerItemRecord = {
+  answer: ClassExamAttemptAnswerRecord;
+  question: ClassExamQuestionRecord;
+};
+
+export type SubmitClassExamAttemptResult = {
+  attempt: ClassExamAttemptRecord;
+  scoreSummary: {
+    awardedScore: number;
+    maxAutoGradableScore: number;
+    pendingManualGradingCount: number;
+    autoGradedQuestionCount: number;
+    answeredQuestionCount: number;
+    totalQuestionCount: number;
+  };
 };
