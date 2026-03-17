@@ -36,6 +36,7 @@ export type ClassExamAttemptRecord = {
   submittedAt: string | null;
   autoGradedScore: number | null;
   maxAutoGradedScore: number | null;
+  finalScore: number | null;
   pendingManualGradingCount: number;
   createdAt: string;
   updatedAt: string;
@@ -59,6 +60,10 @@ export type ClassExamAttemptAnswerRecord = {
   answerText: string | null;
   answerJson: Record<string, unknown>;
   awardedPoints: number | null;
+  manualAwardedPoints: number | null;
+  gradingNote: string | null;
+  gradedBy: string | null;
+  gradedAt: string | null;
   scoredAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -130,9 +135,27 @@ export type StudentExamResultRecord = {
     submittedAt: string | null;
     autoGradedScore: number | null;
     maxAutoGradableScore: number | null;
+    finalScore: number | null;
     pendingManualGradingCount: number;
   };
   reviewItems: StudentExamReviewItemRecord[];
+};
+
+export type EssayManualGradingQueueItemRecord = {
+  answer: ClassExamAttemptAnswerRecord;
+  question: ClassExamQuestionRecord;
+  attempt: ClassExamAttemptRecord;
+  student: {
+    userId: string;
+    email: string | null;
+    displayName: string | null;
+  };
+};
+
+export type GradeEssayAttemptAnswerResult = {
+  answer: ClassExamAttemptAnswerRecord;
+  question: ClassExamQuestionRecord;
+  attempt: ClassExamAttemptRecord;
 };
 
 export type SubmitClassExamAttemptResult = {

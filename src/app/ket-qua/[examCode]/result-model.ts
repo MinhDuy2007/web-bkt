@@ -25,6 +25,16 @@ export function docNhanDiemTuDong(
   return `${summary.autoGradedScore}/${summary.maxAutoGradableScore}`;
 }
 
+export function docNhanDiemCuoi(
+  summary: StudentExamResultRecord["summary"],
+): string {
+  if (summary.finalScore === null) {
+    return "Đang chờ hoàn tất chấm tay";
+  }
+
+  return `${summary.finalScore}`;
+}
+
 export function docNhanChamTungCau(
   item: StudentExamReviewItemRecord,
   daNopBai: boolean,
@@ -34,6 +44,14 @@ export function docNhanChamTungCau(
   }
 
   if (item.question.questionType === "essay_placeholder") {
+    if (!item.answer) {
+      return "Không có câu trả lời đã lưu.";
+    }
+
+    if (item.answer.manualAwardedPoints !== null) {
+      return `Đã chấm tay: ${item.answer.manualAwardedPoints}/${item.question.points} điểm.`;
+    }
+
     return "Đang chờ chấm tay.";
   }
 
@@ -51,4 +69,13 @@ export function docNhanChamTungCau(
 export function docTraLoiDeReview(item: StudentExamReviewItemRecord): string {
   const answerText = item.answer?.answerText?.trim() ?? "";
   return answerText.length > 0 ? answerText : "Chưa có câu trả lời đã lưu.";
+}
+
+export function docGhiChuChamTay(item: StudentExamReviewItemRecord): string | null {
+  if (item.question.questionType !== "essay_placeholder") {
+    return null;
+  }
+
+  const note = item.answer?.gradingNote?.trim() ?? "";
+  return note.length > 0 ? note : null;
 }

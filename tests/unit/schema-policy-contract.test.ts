@@ -46,6 +46,12 @@ const examAttemptAnswersMigrationFile = join(
   "migrations",
   "2026-03-16_12-10-00--exam-attempt-answers-and-scoring-foundation.sql",
 );
+const manualGradingMigrationFile = join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "2026-03-17_09-10-00--manual-grading-foundation.sql",
+);
 const policyFile = join(process.cwd(), "db", "policies", "2026-03-14_00-30-00--auth-foundation-rls.sql");
 const classPolicyFile = join(
   process.cwd(),
@@ -71,6 +77,12 @@ const examAttemptAnswersPolicyFile = join(
   "policies",
   "2026-03-16_12-20-00--exam-attempt-answers-and-scoring-foundation-rls.sql",
 );
+const manualGradingPolicyFile = join(
+  process.cwd(),
+  "db",
+  "policies",
+  "2026-03-17_09-20-00--manual-grading-foundation-rls.sql",
+);
 
 const migrationSql = readFileSync(migrationFile, "utf8");
 const sessionHardeningMigrationSql = readFileSync(sessionHardeningMigrationFile, "utf8");
@@ -80,11 +92,13 @@ const classFoundationMigrationSql = readFileSync(classFoundationMigrationFile, "
 const classExamsFoundationMigrationSql = readFileSync(classExamsFoundationMigrationFile, "utf8");
 const examQuestionsFoundationMigrationSql = readFileSync(examQuestionsFoundationMigrationFile, "utf8");
 const examAttemptAnswersMigrationSql = readFileSync(examAttemptAnswersMigrationFile, "utf8");
+const manualGradingMigrationSql = readFileSync(manualGradingMigrationFile, "utf8");
 const policySql = readFileSync(policyFile, "utf8");
 const classPolicySql = readFileSync(classPolicyFile, "utf8");
 const classExamsPolicySql = readFileSync(classExamsPolicyFile, "utf8");
 const examQuestionsPolicySql = readFileSync(examQuestionsPolicyFile, "utf8");
 const examAttemptAnswersPolicySql = readFileSync(examAttemptAnswersPolicyFile, "utf8");
+const manualGradingPolicySql = readFileSync(manualGradingPolicyFile, "utf8");
 
 test("migration phai co cac bang auth nen tang", () => {
   assert.match(migrationSql, /create table if not exists public\.user_accounts/i);
@@ -168,6 +182,15 @@ test("migration attempt answers phai co bang tra loi va cot scoring attempt", ()
   assert.match(examAttemptAnswersMigrationSql, /uq_class_exam_attempt_answers_attempt_question/i);
   assert.match(examAttemptAnswersMigrationSql, /app_is_attempt_owner/i);
   assert.match(examAttemptAnswersMigrationSql, /app_guard_attempt_answer_consistency/i);
+});
+
+test("migration manual grading phai mo rong attempt va answer cho cham tay", () => {
+  assert.match(manualGradingMigrationSql, /add column if not exists final_score numeric\(10, 2\)/i);
+  assert.match(manualGradingMigrationSql, /add column if not exists manual_awarded_points numeric\(8, 2\)/i);
+  assert.match(manualGradingMigrationSql, /add column if not exists grading_note text null/i);
+  assert.match(manualGradingMigrationSql, /add column if not exists graded_by uuid null/i);
+  assert.match(manualGradingMigrationSql, /create or replace function public\.app_is_exam_owner_by_attempt_answer/i);
+  assert.match(manualGradingMigrationSql, /create or replace function public\.app_is_exam_owner_by_attempt/i);
 });
 
 test("migration admin review phai ghi actor audit tu reviewed_by khi auth.uid null", () => {
@@ -256,4 +279,11 @@ test("policy attempt answers phai khoa owner attempt va started status", () => {
   );
   assert.match(examAttemptAnswersPolicySql, /app_is_attempt_owner/i);
   assert.match(examAttemptAnswersPolicySql, /cea\.status = 'started'/i);
+});
+
+test("policy manual grading phai cho owner exam cham essay va cap nhat attempt submitted", () => {
+  assert.match(manualGradingPolicySql, /app_is_exam_owner_by_attempt_answer/i);
+  assert.match(manualGradingPolicySql, /eq\.question_type = 'essay_placeholder'/i);
+  assert.match(manualGradingPolicySql, /app_is_exam_owner_by_attempt\(id, auth\.uid\(\)\)/i);
+  assert.match(manualGradingPolicySql, /status = 'submitted'/i);
 });

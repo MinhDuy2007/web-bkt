@@ -1,0 +1,54 @@
+﻿[THOI GIAN TEST]
+2026-03-17 10:14:52
+
+[MUC TIEU TEST]
+Kiem tra task 12: manual grading cho essay_placeholder, cap nhat final score attempt, va hien thi du lieu moi tren giao dien teacher/student that tren dev/test.
+
+[LENH DA CHAY]
+1) npm run db:prepare-migrations
+2) npm run db:push:dry
+3) npm run db:push
+4) npm run lint
+5) npm run typecheck
+6) npm run test
+7) node --import tsx scripts/task12-manual-grading-ui-proof.ts setup
+8) npm run dev -- --hostname 127.0.0.1 --port 3000
+9) npx playwright screenshot ... /giao-vien/cham-tu-luan/[examCode]
+10) node --import tsx scripts/task12-manual-grading-ui-proof.ts verify
+11) npx playwright screenshot ... /ket-qua/[examCode]
+
+[KET QUA TOM TAT]
+- db prepare exit code: 0
+- db push dry exit code: 0
+- db push exit code: 0
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- ui setup exit code: 0
+- runtime verify exit code: 0
+- teacher screenshot exit code: 0
+- student result screenshot exit code: 0
+- HTTP status root: 200
+- examCode proof: EXKU69HKJU
+- Anh giao dien teacher: teacher-manual-grading.jpg
+- Anh giao dien hoc sinh: student-result-after-grading.jpg
+
+[FILE LOG]
+- db-prepare.log
+- db-push-dry.log
+- db-push.log
+- lint.log
+- typecheck.log
+- test.log
+- ui-setup.log
+- runtime-verify.log
+- dev-server.log
+- dev-server.err.log
+- teacher-screenshot.log
+- student-screenshot.log
+
+[GHI CHU]
+- Proof runtime verify da kiem tra service + DB cho manual grading, pending count va final_score.
+- Screenshot teacher duoc chup truoc khi cham tay de cho thay queue can cham.
+- Screenshot student result duoc chup sau khi cham tay de cho thay du lieu result doc tu server sau cap nhat.
+- Session token chi duoc luu tam trong file state/storage va da duoc xoa sau khi ket thuc.

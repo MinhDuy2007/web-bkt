@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
+  docGhiChuChamTay,
   docNhanChamTungCau,
+  docNhanDiemCuoi,
   docNhanDiemTuDong,
   docTraLoiDeReview,
   xacDinhCheDoKetQua,
@@ -171,6 +173,11 @@ export function KetQuaExamToiThieu({ examCode }: KetQuaExamProps) {
                   <p className={styles.summaryNote}>Frontend chỉ hiển thị dữ liệu server trả về.</p>
                 </div>
                 <div className={styles.summaryItem}>
+                  <span className={styles.summaryLabel}>Điểm cuối hiện tại</span>
+                  <span className={styles.summaryValue}>{docNhanDiemCuoi(duLieu.summary)}</span>
+                  <p className={styles.summaryNote}>Chỉ có khi toàn bộ phần chấm tay đã hoàn tất.</p>
+                </div>
+                <div className={styles.summaryItem}>
                   <span className={styles.summaryLabel}>Câu đã lưu</span>
                   <span className={styles.summaryValue}>
                     {duLieu.summary.answeredQuestionCount}/{duLieu.summary.totalQuestionCount}
@@ -205,27 +212,34 @@ export function KetQuaExamToiThieu({ examCode }: KetQuaExamProps) {
 
               {duLieu.reviewItems.length > 0 ? (
                 <div className={styles.reviewList}>
-                  {duLieu.reviewItems.map((item, index) => (
-                    <article
-                      key={item.question.id}
-                      className={styles.reviewCard}
-                      data-testid="review-item"
-                    >
-                      <div className={styles.reviewHeader}>
-                        <div>
-                          <p className={styles.reviewIndex}>Câu {index + 1}</p>
-                          <h3 className={styles.reviewTitle}>{item.question.promptText}</h3>
-                        </div>
-                        <div className={styles.reviewMeta}>
-                          <span className={styles.tag}>{item.question.questionType}</span>
-                          <span className={styles.tag}>{item.question.points} điểm</span>
-                        </div>
-                      </div>
+                  {duLieu.reviewItems.map((item, index) => {
+                    const ghiChuChamTay = docGhiChuChamTay(item);
 
-                      <p className={styles.answerBox}>{docTraLoiDeReview(item)}</p>
-                      <p className={styles.note}>{docNhanChamTungCau(item, cheDo === "submitted")}</p>
-                    </article>
-                  ))}
+                    return (
+                      <article
+                        key={item.question.id}
+                        className={styles.reviewCard}
+                        data-testid="review-item"
+                      >
+                        <div className={styles.reviewHeader}>
+                          <div>
+                            <p className={styles.reviewIndex}>Câu {index + 1}</p>
+                            <h3 className={styles.reviewTitle}>{item.question.promptText}</h3>
+                          </div>
+                          <div className={styles.reviewMeta}>
+                            <span className={styles.tag}>{item.question.questionType}</span>
+                            <span className={styles.tag}>{item.question.points} điểm</span>
+                          </div>
+                        </div>
+
+                        <p className={styles.answerBox}>{docTraLoiDeReview(item)}</p>
+                        <p className={styles.note}>{docNhanChamTungCau(item, cheDo === "submitted")}</p>
+                        {ghiChuChamTay ? (
+                          <p className={styles.note}>Ghi chú chấm tay: {ghiChuChamTay}</p>
+                        ) : null}
+                      </article>
+                    );
+                  })}
                 </div>
               ) : null}
             </section>

@@ -9,7 +9,9 @@ import type {
   AnswerKeyPayload,
   CreateClassExamInput,
   CreateExamQuestionInput,
+  GradeEssayAttemptAnswerInput,
   GetStudentExamPlayerInput,
+  ListEssayAnswersForManualGradingInput,
   SubmitClassExamAttemptInput,
   UpsertAttemptAnswerInput,
   UpdateExamQuestionInput,
@@ -20,6 +22,8 @@ import type {
   ClassExamQuestionItemRecord,
   ClassExamQuestionType,
   ClassExamStatus,
+  EssayManualGradingQueueItemRecord,
+  GradeEssayAttemptAnswerResult,
   MyCreatedClassExamItem,
   StartClassExamResult,
   StudentExamPlayerRecord,
@@ -71,6 +75,11 @@ export type LuuCauTraLoiTheoAttemptPayload = {
 
 export type NopBaiKiemTraPayload = {
   attemptId: string;
+};
+
+export type ChamTayCauEssayPayload = {
+  manualAwardedPoints: number;
+  gradingNote: string | null;
 };
 
 function docObject(payload: unknown): Record<string, unknown> {
@@ -549,6 +558,10 @@ export function chuanHoaQuestionId(rawQuestionId: unknown): string {
   return docUuid(rawQuestionId, "questionId");
 }
 
+export function chuanHoaAnswerId(rawAnswerId: unknown): string {
+  return docUuid(rawAnswerId, "answerId");
+}
+
 export function chuanHoaAttemptId(rawAttemptId: unknown): string {
   return docUuid(rawAttemptId, "attemptId");
 }
@@ -569,6 +582,14 @@ export function chuanHoaNopBaiKiemTraPayload(payload: unknown): NopBaiKiemTraPay
   const data = docObject(payload);
   return {
     attemptId: chuanHoaAttemptId(data.attemptId),
+  };
+}
+
+export function chuanHoaChamTayCauEssayPayload(payload: unknown): ChamTayCauEssayPayload {
+  const data = docObject(payload);
+  return {
+    manualAwardedPoints: docSoDuong(data.manualAwardedPoints, "manualAwardedPoints", 0, 1000),
+    gradingNote: docChuoiTuyChon(data.gradingNote, "gradingNote", 4000),
   };
 }
 
@@ -820,6 +841,7 @@ export async function taiKetQuaBaiLamTheoExamCode(
         submittedAt: null,
         autoGradedScore: null,
         maxAutoGradableScore: null,
+        finalScore: null,
         pendingManualGradingCount: 0,
       },
       reviewItems: [],
@@ -854,8 +876,47 @@ export async function taiKetQuaBaiLamTheoExamCode(
       submittedAt: playerData.attempt.submittedAt,
       autoGradedScore: playerData.attempt.autoGradedScore,
       maxAutoGradableScore: playerData.attempt.maxAutoGradedScore,
+      finalScore: playerData.attempt.finalScore,
       pendingManualGradingCount: playerData.attempt.pendingManualGradingCount,
     },
     reviewItems,
   };
+}
+
+export async function lietKeCacCauEssayCanChamTheoExam(
+  token: string,
+  payload: VaoBaiKiemTraPayload,
+): Promise<EssayManualGradingQueueItemRecord[]> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+
+  const input: ListEssayAnswersForManualGradingInput = {
+    examCode: payload.examCode,
+    actorUserId: verifiedSession.user.id,
+  };
+
+  return repository.listEssayAnswersForManualGrading(input);
+}
+
+export async function chamTayCauEssayChoAttempt(
+  token: string,
+  answerId: string,
+  payload: ChamTayCauEssayPayload,
+): Promise<GradeEssayAttemptAnswerResult> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+  const normalizedAnswerId = chuanHoaAnswerId(answerId);
+  const normalizedPayload = chuanHoaChamTayCauEssayPayload(payload);
+
+  const input: GradeEssayAttemptAnswerInput = {
+    answerId: normalizedAnswerId,
+    actorUserId: verifiedSession.user.id,
+    manualAwardedPoints: normalizedPayload.manualAwardedPoints,
+    gradingNote: normalizedPayload.gradingNote,
+    gradedAt: new Date().toISOString(),
+  };
+
+  return repository.gradeEssayAttemptAnswer(input);
 }

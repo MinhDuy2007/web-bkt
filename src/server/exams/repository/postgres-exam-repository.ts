@@ -5,7 +5,9 @@ import type {
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
+  GradeEssayAttemptAnswerInput,
   GetStudentExamPlayerInput,
+  ListEssayAnswersForManualGradingInput,
   ListAttemptAnswersInput,
   SubmitClassExamAttemptInput,
   StartClassExamInput,
@@ -28,6 +30,8 @@ import {
   type ClassExamQuestionType,
   type ClassExamRecord,
   type ClassExamStatus,
+  type EssayManualGradingQueueItemRecord,
+  type GradeEssayAttemptAnswerResult,
   type MyCreatedClassExamItem,
   type StartClassExamResult,
   type StudentExamPlayerRecord,
@@ -55,6 +59,7 @@ type ClassExamAttemptRow = {
   submitted_at: string | null;
   auto_graded_score: string | number | null;
   max_auto_graded_score: string | number | null;
+  final_score: string | number | null;
   pending_manual_grading_count: number | null;
   created_at: string;
   updated_at: string;
@@ -118,6 +123,7 @@ type AttemptOwnerRow = {
   started_at: string;
   auto_graded_score: string | number | null;
   max_auto_graded_score: string | number | null;
+  final_score: string | number | null;
   pending_manual_grading_count: number | null;
   created_at: string;
   updated_at: string;
@@ -130,9 +136,37 @@ type AttemptAnswerRow = {
   answer_text: string | null;
   answer_json: Record<string, unknown> | null;
   awarded_points: string | number | null;
+  manual_awarded_points: string | number | null;
+  grading_note: string | null;
+  graded_by: string | null;
+  graded_at: string | null;
   scored_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type EssayManualGradingRow = AttemptAnswerRow & {
+  question_class_exam_id: string;
+  question_order: number;
+  question_type: string;
+  prompt_text: string;
+  points: string | number;
+  metadata_json: Record<string, unknown> | null;
+  created_by_user_id: string;
+  question_created_at: string;
+  question_updated_at: string;
+  attempt_user_id: string;
+  attempt_status: string;
+  attempt_started_at: string;
+  attempt_submitted_at: string | null;
+  attempt_auto_graded_score: string | number | null;
+  attempt_max_auto_graded_score: string | number | null;
+  attempt_final_score: string | number | null;
+  attempt_pending_manual_grading_count: number | null;
+  attempt_created_at: string;
+  attempt_updated_at: string;
+  student_email: string | null;
+  student_display_name: string | null;
 };
 
 function docGiaTriEnum<T extends readonly string[]>(
@@ -224,6 +258,7 @@ function mapClassExamAttemptRow(row: ClassExamAttemptRow): ClassExamAttemptRecor
     submittedAt: row.submitted_at,
     autoGradedScore: docDiemKhongAm(row.auto_graded_score, "auto_graded_score"),
     maxAutoGradedScore: docDiemKhongAm(row.max_auto_graded_score, "max_auto_graded_score"),
+    finalScore: docDiemKhongAm(row.final_score, "final_score"),
     pendingManualGradingCount: row.pending_manual_grading_count ?? 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -274,10 +309,18 @@ function mapAttemptAnswerRow(row: AttemptAnswerRow): ClassExamAttemptAnswerRecor
     answerText: row.answer_text,
     answerJson: docJsonObject(row.answer_json, "answer_json"),
     awardedPoints: docDiemKhongAm(row.awarded_points, "awarded_points"),
+    manualAwardedPoints: docDiemKhongAm(row.manual_awarded_points, "manual_awarded_points"),
+    gradingNote: row.grading_note,
+    gradedBy: row.graded_by,
+    gradedAt: row.graded_at,
     scoredAt: row.scored_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function coTraLoiTextCoNoiDung(answer: ClassExamAttemptAnswerRecord | null): boolean {
+  return typeof answer?.answerText === "string" && answer.answerText.trim().length > 0;
 }
 
 function taoLoiPostgresExam(action: string, error: unknown): never {
@@ -332,6 +375,14 @@ function taoLoiPostgresExam(action: string, error: unknown): never {
       code: "EXAM_ATTEMPT_ALREADY_SUBMITTED",
       message: "Attempt da nop bai, khong duoc cap nhat du lieu.",
       statusCode: 409,
+    });
+  }
+
+  if (message.includes("ESSAY_MANUAL_GRADING_ONLY")) {
+    throw new AuthError({
+      code: "ESSAY_MANUAL_GRADING_ONLY",
+      message: "Chi cau essay_placeholder moi duoc cham tay trong task nay.",
+      statusCode: 400,
     });
   }
 
@@ -400,6 +451,7 @@ async function batBuocAttemptTonTaiVaCoQuyenTruyCap(
        started_at,
        auto_graded_score,
        max_auto_graded_score,
+       final_score,
        pending_manual_grading_count,
        created_at,
        updated_at
@@ -426,6 +478,76 @@ async function batBuocAttemptTonTaiVaCoQuyenTruyCap(
   }
 
   return attemptRow;
+}
+
+async function batBuocCauEssayTonTaiVaCoQuyenCham(
+  client: {
+    query: (queryText: string, values?: unknown[]) => Promise<{ rows: EssayManualGradingRow[] }>;
+  },
+  answerId: string,
+  actorUserId: string,
+  lock: boolean,
+): Promise<EssayManualGradingRow> {
+  const result = await client.query(
+    `select
+       aa.*,
+       q.class_exam_id as question_class_exam_id,
+       q.question_order,
+       q.question_type,
+       q.prompt_text,
+       q.points,
+       q.metadata_json,
+       q.created_by_user_id,
+       q.created_at as question_created_at,
+       q.updated_at as question_updated_at,
+       cea.user_id as attempt_user_id,
+       cea.status as attempt_status,
+       cea.started_at as attempt_started_at,
+       cea.submitted_at as attempt_submitted_at,
+       cea.auto_graded_score as attempt_auto_graded_score,
+       cea.max_auto_graded_score as attempt_max_auto_graded_score,
+       cea.final_score as attempt_final_score,
+       cea.pending_manual_grading_count as attempt_pending_manual_grading_count,
+       cea.created_at as attempt_created_at,
+       cea.updated_at as attempt_updated_at,
+       ua.email as student_email,
+       up.display_name as student_display_name
+     from public.class_exam_attempt_answers aa
+     inner join public.exam_questions q on q.id = aa.question_id
+     inner join public.class_exam_attempts cea on cea.id = aa.attempt_id
+     inner join public.class_exams ce on ce.id = cea.class_exam_id
+     left join public.user_accounts ua on ua.id = cea.user_id
+     left join public.user_profiles up on up.user_id = cea.user_id
+     where aa.id = $1
+     limit 1${lock ? " for update of aa, cea" : ""}`,
+    [answerId],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+      message: "Khong tim thay cau tra loi can cham tay.",
+      statusCode: 404,
+    });
+  }
+
+  if (row.created_by_user_id !== actorUserId) {
+    throw new AuthError({
+      code: "EXAM_CONTENT_PERMISSION_REQUIRED",
+      message: "Tai khoan hien tai khong co quyen cham tay bai nay.",
+      statusCode: 403,
+    });
+  }
+
+  if (row.question_type !== "essay_placeholder") {
+    throw new AuthError({
+      code: "ESSAY_MANUAL_GRADING_ONLY",
+      message: "Chi cau essay_placeholder moi duoc cham tay trong task nay.",
+      statusCode: 400,
+    });
+  }
+
+  return row;
 }
 
 export function taoPostgresExamRepository(): ExamRepository {
@@ -590,11 +712,12 @@ export function taoPostgresExamRepository(): ExamRepository {
              submitted_at,
              auto_graded_score,
              max_auto_graded_score,
+             final_score,
              pending_manual_grading_count,
              created_at,
              updated_at
            )
-           values ($1, $2, 'started', $3, null, null, null, 0, $3, $3)
+           values ($1, $2, 'started', $3, null, null, null, null, 0, $3, $3)
            returning *`,
           [examRow.id, input.userId, input.startedAt],
         );
@@ -758,6 +881,244 @@ export function taoPostgresExamRepository(): ExamRepository {
           throw error;
         }
         taoLoiPostgresExam("tai du lieu exam player cho hoc sinh", error);
+      }
+    },
+
+    async listEssayAnswersForManualGrading(
+      input: ListEssayAnswersForManualGradingInput,
+    ): Promise<EssayManualGradingQueueItemRecord[]> {
+      const client = await pool.connect();
+      try {
+        const examRow = await batBuocExamTonTaiVaCoQuyenSua(
+          client,
+          input.examCode,
+          input.actorUserId,
+          false,
+        );
+
+        const result = await client.query<EssayManualGradingRow>(
+          `select
+             aa.*,
+             q.class_exam_id as question_class_exam_id,
+             q.question_order,
+             q.question_type,
+             q.prompt_text,
+             q.points,
+             q.metadata_json,
+             q.created_by_user_id,
+             q.created_at as question_created_at,
+             q.updated_at as question_updated_at,
+             cea.user_id as attempt_user_id,
+             cea.status as attempt_status,
+             cea.started_at as attempt_started_at,
+             cea.submitted_at as attempt_submitted_at,
+             cea.auto_graded_score as attempt_auto_graded_score,
+             cea.max_auto_graded_score as attempt_max_auto_graded_score,
+             cea.final_score as attempt_final_score,
+             cea.pending_manual_grading_count as attempt_pending_manual_grading_count,
+             cea.created_at as attempt_created_at,
+             cea.updated_at as attempt_updated_at,
+             ua.email as student_email,
+             up.display_name as student_display_name
+           from public.class_exam_attempt_answers aa
+           inner join public.exam_questions q on q.id = aa.question_id
+           inner join public.class_exam_attempts cea on cea.id = aa.attempt_id
+           left join public.user_accounts ua on ua.id = cea.user_id
+           left join public.user_profiles up on up.user_id = cea.user_id
+           where q.class_exam_id = $1
+             and q.question_type = 'essay_placeholder'
+             and cea.status = 'submitted'
+             and nullif(btrim(coalesce(aa.answer_text, '')), '') is not null
+             and aa.manual_awarded_points is null
+           order by cea.submitted_at asc nulls last, q.question_order asc, aa.created_at asc`,
+          [examRow.id],
+        );
+
+        return result.rows.map((row) => ({
+          answer: mapAttemptAnswerRow(row),
+          question: mapExamQuestionRow({
+            id: row.question_id,
+            class_exam_id: examRow.id,
+            question_order: row.question_order,
+            question_type: row.question_type,
+            prompt_text: row.prompt_text,
+            points: row.points,
+            metadata_json: row.metadata_json,
+            created_by_user_id: row.created_by_user_id,
+            created_at: row.question_created_at,
+            updated_at: row.question_updated_at,
+          }),
+          attempt: mapClassExamAttemptRow({
+            id: row.attempt_id,
+            class_exam_id: examRow.id,
+            user_id: row.attempt_user_id,
+            status: row.attempt_status,
+            started_at: row.attempt_started_at,
+            submitted_at: row.attempt_submitted_at,
+            auto_graded_score: row.attempt_auto_graded_score,
+            max_auto_graded_score: row.attempt_max_auto_graded_score,
+            final_score: row.attempt_final_score,
+            pending_manual_grading_count: row.attempt_pending_manual_grading_count,
+            created_at: row.attempt_created_at,
+            updated_at: row.attempt_updated_at,
+          }),
+          student: {
+            userId: row.attempt_user_id,
+            email: row.student_email,
+            displayName: row.student_display_name,
+          },
+        }));
+      } catch (error) {
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("liet ke cac cau essay can cham", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async gradeEssayAttemptAnswer(
+      input: GradeEssayAttemptAnswerInput,
+    ): Promise<GradeEssayAttemptAnswerResult> {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+
+        const currentRow = await batBuocCauEssayTonTaiVaCoQuyenCham(
+          client,
+          input.answerId,
+          input.actorUserId,
+          true,
+        );
+        if (currentRow.attempt_status !== "submitted") {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_NOT_SUBMITTED",
+            message: "Chi duoc cham tay sau khi hoc sinh da nop bai.",
+            statusCode: 409,
+          });
+        }
+
+        const question = mapExamQuestionRow({
+          id: currentRow.question_id,
+          class_exam_id: currentRow.question_class_exam_id,
+          question_order: currentRow.question_order,
+          question_type: currentRow.question_type,
+          prompt_text: currentRow.prompt_text,
+          points: currentRow.points,
+          metadata_json: currentRow.metadata_json,
+          created_by_user_id: currentRow.created_by_user_id,
+          created_at: currentRow.question_created_at,
+          updated_at: currentRow.question_updated_at,
+        });
+        if (!coTraLoiTextCoNoiDung(mapAttemptAnswerRow(currentRow))) {
+          throw new AuthError({
+            code: "ESSAY_ANSWER_EMPTY",
+            message: "Khong the cham tay khi cau tu luan chua co noi dung tra loi.",
+            statusCode: 400,
+          });
+        }
+        if (input.manualAwardedPoints < 0 || input.manualAwardedPoints > question.points) {
+          throw new AuthError({
+            code: "INVALID_INPUT",
+            message: "Diem cham tay phai nam trong khoang 0 den diem toi da cua cau hoi.",
+            statusCode: 400,
+          });
+        }
+
+        const answerResult = await client.query<AttemptAnswerRow>(
+          `update public.class_exam_attempt_answers
+           set
+             awarded_points = $2,
+             manual_awarded_points = $2,
+             grading_note = $3,
+             graded_by = $4,
+             graded_at = $5,
+             scored_at = $5,
+             updated_at = $5
+           where id = $1
+           returning *`,
+          [
+            input.answerId,
+            lamTronDiemNen(input.manualAwardedPoints),
+            input.gradingNote,
+            input.actorUserId,
+            input.gradedAt,
+          ],
+        );
+        const updatedAnswerRow = answerResult.rows[0];
+        if (!updatedAnswerRow) {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+            message: "Khong tim thay cau tra loi can cham tay.",
+            statusCode: 404,
+          });
+        }
+
+        const answerRowsResult = await client.query<
+          AttemptAnswerRow & {
+            question_type: string;
+          }
+        >(
+          `select aa.*, q.question_type
+           from public.class_exam_attempt_answers aa
+           inner join public.exam_questions q on q.id = aa.question_id
+           where aa.attempt_id = $1`,
+          [currentRow.attempt_id],
+        );
+
+        let finalScore = 0;
+        let pendingManualGradingCount = 0;
+        for (const row of answerRowsResult.rows) {
+          const answer = mapAttemptAnswerRow(row);
+          finalScore += answer.awardedPoints ?? 0;
+          if (
+            row.question_type === "essay_placeholder" &&
+            coTraLoiTextCoNoiDung(answer) &&
+            answer.manualAwardedPoints === null
+          ) {
+            pendingManualGradingCount += 1;
+          }
+        }
+
+        const attemptResult = await client.query<ClassExamAttemptRow>(
+          `update public.class_exam_attempts
+           set
+             final_score = $2,
+             pending_manual_grading_count = $3,
+             updated_at = $4
+           where id = $1
+           returning *`,
+          [
+            currentRow.attempt_id,
+            pendingManualGradingCount === 0 ? lamTronDiemNen(finalScore) : null,
+            pendingManualGradingCount,
+            input.gradedAt,
+          ],
+        );
+        const updatedAttemptRow = attemptResult.rows[0];
+        if (!updatedAttemptRow) {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_NOT_FOUND",
+            message: "Khong tim thay luot lam bai de cap nhat tong ket.",
+            statusCode: 404,
+          });
+        }
+
+        await client.query("commit");
+        return {
+          answer: mapAttemptAnswerRow(updatedAnswerRow),
+          question,
+          attempt: mapClassExamAttemptRow(updatedAttemptRow),
+        };
+      } catch (error) {
+        await rollbackAnToan(client);
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("cham tay cau essay", error);
+      } finally {
+        client.release();
       }
     },
 
@@ -1144,6 +1505,10 @@ export function taoPostgresExamRepository(): ExamRepository {
              set answer_text = excluded.answer_text,
                  answer_json = excluded.answer_json,
                  awarded_points = null,
+                 manual_awarded_points = null,
+                 grading_note = null,
+                 graded_by = null,
+                 graded_at = null,
                  scored_at = null,
                  updated_at = excluded.updated_at
            returning *`,
@@ -1336,7 +1701,7 @@ export function taoPostgresExamRepository(): ExamRepository {
           if (ketQuaCham.laCauChamTuDong) {
             autoGradedQuestionCount += 1;
           }
-          if (ketQuaCham.laCauTuLuanChoChamTay) {
+          if (ketQuaCham.laCauTuLuanChoChamTay && coTraLoiTextCoNoiDung(answer)) {
             pendingManualGradingCount += 1;
           }
 
@@ -1359,7 +1724,8 @@ export function taoPostgresExamRepository(): ExamRepository {
              submitted_at = $2,
              auto_graded_score = $3,
              max_auto_graded_score = $4,
-             pending_manual_grading_count = $5,
+             final_score = $5,
+             pending_manual_grading_count = $6,
              updated_at = $2
            where id = $1
            returning *`,
@@ -1368,6 +1734,7 @@ export function taoPostgresExamRepository(): ExamRepository {
             input.submittedAt,
             lamTronDiemNen(awardedScore),
             lamTronDiemNen(maxAutoGradableScore),
+            pendingManualGradingCount === 0 ? lamTronDiemNen(awardedScore) : null,
             pendingManualGradingCount,
           ],
         );

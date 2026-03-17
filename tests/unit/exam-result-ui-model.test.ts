@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  docGhiChuChamTay,
   docNhanChamTungCau,
+  docNhanDiemCuoi,
   docNhanDiemTuDong,
   docTraLoiDeReview,
   xacDinhCheDoKetQua,
@@ -22,6 +24,7 @@ function taoAttempt(status: ClassExamAttemptRecord["status"]): ClassExamAttemptR
     submittedAt: status === "submitted" ? "2026-03-16T00:10:00.000Z" : null,
     autoGradedScore: status === "submitted" ? 2 : null,
     maxAutoGradedScore: status === "submitted" ? 3 : null,
+    finalScore: status === "submitted" ? null : null,
     pendingManualGradingCount: 1,
     createdAt: "2026-03-16T00:00:00.000Z",
     updatedAt: "2026-03-16T00:10:00.000Z",
@@ -47,6 +50,8 @@ function taoReviewItem(
   questionType: ClassExamQuestionRecord["questionType"],
   answerText: string | null,
   awardedPoints: number | null,
+  manualAwardedPoints: number | null = null,
+  gradingNote: string | null = null,
 ): StudentExamReviewItemRecord {
   return {
     question: taoQuestion(questionType),
@@ -59,6 +64,10 @@ function taoReviewItem(
           answerText,
           answerJson: {},
           awardedPoints,
+          manualAwardedPoints,
+          gradingNote,
+          gradedBy: manualAwardedPoints === null ? null : "teacher-1",
+          gradedAt: manualAwardedPoints === null ? null : "2026-03-16T00:20:00.000Z",
           scoredAt: awardedPoints === null ? null : "2026-03-16T00:12:00.000Z",
           createdAt: "2026-03-16T00:05:00.000Z",
           updatedAt: "2026-03-16T00:12:00.000Z",
@@ -72,7 +81,7 @@ test("xac dinh che do ket qua dung theo attempt", () => {
   assert.equal(xacDinhCheDoKetQua(taoAttempt("submitted")), "submitted");
 });
 
-test("doc nhan diem tu dong dung du lieu server", () => {
+test("doc nhan diem tu dong va diem cuoi dung du lieu server", () => {
   assert.equal(
     docNhanDiemTuDong({
       totalQuestionCount: 4,
@@ -81,33 +90,58 @@ test("doc nhan diem tu dong dung du lieu server", () => {
       submittedAt: "2026-03-16T00:10:00.000Z",
       autoGradedScore: 5,
       maxAutoGradableScore: 6,
-      pendingManualGradingCount: 1,
+      finalScore: 8,
+      pendingManualGradingCount: 0,
     }),
     "5/6",
   );
   assert.equal(
-    docNhanDiemTuDong({
+    docNhanDiemCuoi({
       totalQuestionCount: 4,
-      answeredQuestionCount: 1,
-      submitted: false,
-      submittedAt: null,
-      autoGradedScore: null,
-      maxAutoGradableScore: null,
+      answeredQuestionCount: 3,
+      submitted: true,
+      submittedAt: "2026-03-16T00:10:00.000Z",
+      autoGradedScore: 5,
+      maxAutoGradableScore: 6,
+      finalScore: 8,
       pendingManualGradingCount: 0,
     }),
-    "Chưa có",
+    "8",
+  );
+  assert.equal(
+    docNhanDiemCuoi({
+      totalQuestionCount: 4,
+      answeredQuestionCount: 1,
+      submitted: true,
+      submittedAt: "2026-03-16T00:10:00.000Z",
+      autoGradedScore: 2,
+      maxAutoGradableScore: 3,
+      finalScore: null,
+      pendingManualGradingCount: 1,
+    }),
+    "Đang chờ hoàn tất chấm tay",
   );
 });
 
 test("doc tra loi review va nhan cham tung cau dung theo trang thai", () => {
   const mcqItem = taoReviewItem("multiple_choice_single", "4", 3);
-  const essayItem = taoReviewItem("essay_placeholder", "Bai lam essay", 0);
+  const essayPendingItem = taoReviewItem("essay_placeholder", "Bai lam essay", 0);
+  const essayGradedItem = taoReviewItem(
+    "essay_placeholder",
+    "Bai lam essay",
+    2.5,
+    2.5,
+    "Lap luan on, can trinh bay gon hon.",
+  );
   const emptyItem = taoReviewItem("short_answer", null, null);
 
   assert.equal(docTraLoiDeReview(mcqItem), "4");
   assert.equal(docTraLoiDeReview(emptyItem), "Chưa có câu trả lời đã lưu.");
   assert.equal(docNhanChamTungCau(mcqItem, false), "Attempt chưa nộp, chưa có kết quả hoàn chỉnh.");
   assert.equal(docNhanChamTungCau(mcqItem, true), "Đã chấm tự động: 3/3 điểm.");
-  assert.equal(docNhanChamTungCau(essayItem, true), "Đang chờ chấm tay.");
+  assert.equal(docNhanChamTungCau(essayPendingItem, true), "Đang chờ chấm tay.");
+  assert.equal(docNhanChamTungCau(essayGradedItem, true), "Đã chấm tay: 2.5/3 điểm.");
   assert.equal(docNhanChamTungCau(emptyItem, true), "Không có câu trả lời đã lưu.");
+  assert.equal(docGhiChuChamTay(essayPendingItem), null);
+  assert.equal(docGhiChuChamTay(essayGradedItem), "Lap luan on, can trinh bay gon hon.");
 });

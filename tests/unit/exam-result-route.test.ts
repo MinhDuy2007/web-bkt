@@ -180,7 +180,7 @@ test("route ket qua tra summary va review items cho submitted attempt", async ()
   assert.equal(body.data.summary.submitted, true);
   assert.equal(body.data.summary.answeredQuestionCount, 1);
   assert.equal(body.data.summary.totalQuestionCount, 2);
-  assert.equal(body.data.summary.pendingManualGradingCount, 1);
+  assert.equal(body.data.summary.pendingManualGradingCount, 0);
   assert.equal(body.data.reviewItems.length, 2);
   assert.equal(body.data.reviewItems[0]?.question.id, q1.question.id);
   assert.equal(body.data.reviewItems[0]?.answer?.answerText, "4");

@@ -1,0 +1,227 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(249, 115, 22, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(2, 6, 23, 1), rgba(10, 16, 30, 1));
+  color: var(--color-text-primary);
+}
+
+.shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 56px 0 88px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.kicker {
+  margin: 0;
+  color: #fdba74;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  line-height: 1;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 760px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.summaryCard,
+.stateCard,
+.card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(14px);
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.summaryCard,
+.stateCard,
+.card {
+  padding: 24px;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.summaryItem {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(30, 41, 59, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.summaryLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.summaryValue {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.summaryNote {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.inlineMessage {
+  margin: 18px 0 0;
+  color: #fed7aa;
+  line-height: 1.6;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.cardIndex {
+  margin: 0 0 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.cardTitle {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  line-height: 1.5;
+}
+
+.cardMeta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.pointsTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.14);
+  border: 1px solid rgba(249, 115, 22, 0.24);
+  color: #fdba74;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.answerBox {
+  margin-bottom: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--color-text-secondary);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--color-text-primary);
+  padding: 14px 16px;
+  font: inherit;
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.9);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.buttonPrimary {
+  background: linear-gradient(135deg, #ea580c, #7c2d12);
+  border-color: rgba(251, 146, 60, 0.35);
+}
+
+@media (max-width: 900px) {
+  .shell {
+    width: min(100% - 24px, 100%);
+    padding: 40px 0 64px;
+  }
+
+  .summaryGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cardHeader {
+    flex-direction: column;
+  }
+}

@@ -1,4 +1,6 @@
 import type {
+  EssayManualGradingQueueItemRecord,
+  GradeEssayAttemptAnswerResult,
   ClassExamAttemptAnswerItemRecord,
   ClassExamAnswerKeyType,
   ClassExamAttemptRecord,
@@ -88,6 +90,19 @@ export type GetStudentExamPlayerInput = {
   actorUserId: string;
 };
 
+export type ListEssayAnswersForManualGradingInput = {
+  examCode: string;
+  actorUserId: string;
+};
+
+export type GradeEssayAttemptAnswerInput = {
+  answerId: string;
+  actorUserId: string;
+  manualAwardedPoints: number;
+  gradingNote: string | null;
+  gradedAt: string;
+};
+
 export interface ExamRepository {
   createClassExamByTeacher(input: CreateClassExamInput): Promise<ClassExamRecord>;
   listMyCreatedClassExams(userId: string): Promise<MyCreatedClassExamItem[]>;
@@ -105,4 +120,8 @@ export interface ExamRepository {
   listAttemptAnswers(input: ListAttemptAnswersInput): Promise<ClassExamAttemptAnswerItemRecord[]>;
   submitClassExamAttempt(input: SubmitClassExamAttemptInput): Promise<SubmitClassExamAttemptResult>;
   getStudentExamPlayer(input: GetStudentExamPlayerInput): Promise<StudentExamPlayerRecord>;
+  listEssayAnswersForManualGrading(
+    input: ListEssayAnswersForManualGradingInput,
+  ): Promise<EssayManualGradingQueueItemRecord[]>;
+  gradeEssayAttemptAnswer(input: GradeEssayAttemptAnswerInput): Promise<GradeEssayAttemptAnswerResult>;
 }

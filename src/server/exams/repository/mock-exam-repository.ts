@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { AuthError } from "@/server/auth/errors";
+import { layAuthRepository } from "@/server/auth/repository";
 import {
   laThanhVienLopHocGiaLap,
   layLopHocGiaLapTheoMaLop,
@@ -10,7 +11,9 @@ import type {
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
+  GradeEssayAttemptAnswerInput,
   GetStudentExamPlayerInput,
+  ListEssayAnswersForManualGradingInput,
   ListAttemptAnswersInput,
   SubmitClassExamAttemptInput,
   StartClassExamInput,
@@ -25,6 +28,8 @@ import type {
   ClassExamQuestionItemRecord,
   ClassExamQuestionRecord,
   ClassExamRecord,
+  EssayManualGradingQueueItemRecord,
+  GradeEssayAttemptAnswerResult,
   MyCreatedClassExamItem,
   StartClassExamResult,
   StudentExamPlayerRecord,
@@ -155,6 +160,63 @@ function batBuocQuyenTruyCapAttempt(attemptId: string, actorUserId: string): Cla
   return attempt;
 }
 
+function coCauTraLoiTextHopLe(answer: ClassExamAttemptAnswerRecord | null): boolean {
+  return typeof answer?.answerText === "string" && answer.answerText.trim().length > 0;
+}
+
+function batBuocQuestionEssay(questionId: string): ClassExamQuestionRecord {
+  const question = batBuocQuestionTonTai(questionId);
+  if (question.questionType !== "essay_placeholder") {
+    throw new AuthError({
+      code: "ESSAY_MANUAL_GRADING_ONLY",
+      message: "Chi cau essay_placeholder moi duoc cham tay trong task nay.",
+      statusCode: 400,
+    });
+  }
+
+  return question;
+}
+
+function batBuocQuyenChamTayEssay(question: ClassExamQuestionRecord, actorUserId: string): void {
+  batBuocQuyenSuaNoiDungExam(question.classExamId, actorUserId);
+}
+
+function tinhTongKetAttemptSauChamTay(attemptId: string): {
+  finalScore: number | null;
+  pendingManualGradingCount: number;
+} {
+  const attempt = batBuocAttemptTonTai(attemptId);
+  const questionIds = layDanhSachQuestionIdTheoExam(attempt.classExamId);
+  let finalScore = 0;
+  let pendingManualGradingCount = 0;
+
+  for (const questionId of questionIds) {
+    const question = mockExamStore.questionsById.get(questionId);
+    if (!question) {
+      continue;
+    }
+
+    const answerId = mockExamStore.attemptAnswerIdByAttemptAndQuestion.get(
+      keyAttemptQuestion(attempt.id, question.id),
+    );
+    const answer = answerId ? (mockExamStore.attemptAnswersById.get(answerId) ?? null) : null;
+    finalScore += answer?.awardedPoints ?? 0;
+
+    if (
+      question.questionType === "essay_placeholder" &&
+      coCauTraLoiTextHopLe(answer) &&
+      answer?.manualAwardedPoints === null
+    ) {
+      pendingManualGradingCount += 1;
+    }
+  }
+
+  return {
+    finalScore: pendingManualGradingCount === 0 ? lamTronDiemNen(finalScore) : null,
+    pendingManualGradingCount,
+  };
+}
+
 function batBuocAttemptChuaNop(attempt: ClassExamAttemptRecord): void {
   if (attempt.status !== "started") {
     throw new AuthError({
@@ -173,6 +235,24 @@ function layDanhSachQuestionIdTheoExam(classExamId: string): Set<string> {
   }
 
   return questionIds;
+}
+
+async function taoThongTinHocSinh(userId: string): Promise<{
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+}> {
+  const authRepository = layAuthRepository();
+  const [account, profile] = await Promise.all([
+    authRepository.findUserById(userId),
+    authRepository.findProfileByUserId(userId),
+  ]);
+
+  return {
+    userId,
+    email: account?.email ?? null,
+    displayName: profile?.displayName ?? null,
+  };
 }
 
 function taoMockExamRepository(): ExamRepository {
@@ -295,6 +375,7 @@ function taoMockExamRepository(): ExamRepository {
         submittedAt: null,
         autoGradedScore: null,
         maxAutoGradedScore: null,
+        finalScore: null,
         pendingManualGradingCount: 0,
         createdAt: input.startedAt,
         updatedAt: input.startedAt,
@@ -597,6 +678,10 @@ function taoMockExamRepository(): ExamRepository {
           answerText: input.answerText,
           answerJson: saoChep(input.answerJson),
           awardedPoints: null,
+          manualAwardedPoints: null,
+          gradingNote: null,
+          gradedBy: null,
+          gradedAt: null,
           scoredAt: null,
           updatedAt: nowIso,
         };
@@ -614,6 +699,10 @@ function taoMockExamRepository(): ExamRepository {
         answerText: input.answerText,
         answerJson: saoChep(input.answerJson),
         awardedPoints: null,
+        manualAwardedPoints: null,
+        gradingNote: null,
+        gradedBy: null,
+        gradedAt: null,
         scoredAt: null,
         createdAt: nowIso,
         updatedAt: nowIso,
@@ -685,7 +774,7 @@ function taoMockExamRepository(): ExamRepository {
         if (ketQuaCham.laCauChamTuDong) {
           autoGradedQuestionCount += 1;
         }
-        if (ketQuaCham.laCauTuLuanChoChamTay) {
+        if (ketQuaCham.laCauTuLuanChoChamTay && coCauTraLoiTextHopLe(answer)) {
           pendingManualGradingCount += 1;
         }
 
@@ -706,6 +795,8 @@ function taoMockExamRepository(): ExamRepository {
         submittedAt: input.submittedAt,
         autoGradedScore: lamTronDiemNen(awardedScore),
         maxAutoGradedScore: lamTronDiemNen(maxAutoGradableScore),
+        finalScore:
+          pendingManualGradingCount === 0 ? lamTronDiemNen(awardedScore) : null,
         pendingManualGradingCount,
         updatedAt: input.submittedAt,
       };
@@ -721,6 +812,136 @@ function taoMockExamRepository(): ExamRepository {
           answeredQuestionCount,
           totalQuestionCount: questionIds.size,
         },
+      };
+    },
+
+    async listEssayAnswersForManualGrading(
+      input: ListEssayAnswersForManualGradingInput,
+    ): Promise<EssayManualGradingQueueItemRecord[]> {
+      const examId = mockExamStore.examIdByExamCode.get(keyExamCode(input.examCode));
+      if (!examId) {
+        throw new AuthError({
+          code: "EXAM_NOT_FOUND",
+          message: "Khong tim thay bai kiem tra theo ma da nhap.",
+          statusCode: 404,
+        });
+      }
+
+      batBuocQuyenSuaNoiDungExam(examId, input.actorUserId);
+
+      const items: EssayManualGradingQueueItemRecord[] = [];
+      const questionIds = Array.from(layDanhSachQuestionIdTheoExam(examId))
+        .map((questionId) => mockExamStore.questionsById.get(questionId))
+        .filter(
+          (question): question is ClassExamQuestionRecord =>
+            question !== undefined && question.questionType === "essay_placeholder",
+        )
+        .sort((a, b) => a.questionOrder - b.questionOrder);
+
+      for (const question of questionIds) {
+        for (const attempt of mockExamStore.attemptsById.values()) {
+          if (attempt.classExamId !== examId || attempt.status !== "submitted") {
+            continue;
+          }
+
+          const answerId = mockExamStore.attemptAnswerIdByAttemptAndQuestion.get(
+            keyAttemptQuestion(attempt.id, question.id),
+          );
+          if (!answerId) {
+            continue;
+          }
+
+          const answer = mockExamStore.attemptAnswersById.get(answerId);
+          if (!answer || !coCauTraLoiTextHopLe(answer) || answer.manualAwardedPoints !== null) {
+            continue;
+          }
+
+          items.push({
+            answer: saoChep(answer),
+            question: saoChep(question),
+            attempt: saoChep(attempt),
+            student: await taoThongTinHocSinh(attempt.userId),
+          });
+        }
+      }
+
+      return items.sort((a, b) => {
+        const submittedDiff =
+          new Date(a.attempt.submittedAt ?? a.attempt.updatedAt).getTime() -
+          new Date(b.attempt.submittedAt ?? b.attempt.updatedAt).getTime();
+        if (submittedDiff !== 0) {
+          return submittedDiff;
+        }
+
+        return a.question.questionOrder - b.question.questionOrder;
+      });
+    },
+
+    async gradeEssayAttemptAnswer(
+      input: GradeEssayAttemptAnswerInput,
+    ): Promise<GradeEssayAttemptAnswerResult> {
+      const answer = mockExamStore.attemptAnswersById.get(input.answerId);
+      if (!answer) {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+          message: "Khong tim thay cau tra loi can cham tay.",
+          statusCode: 404,
+        });
+      }
+
+      const question = batBuocQuestionEssay(answer.questionId);
+      batBuocQuyenChamTayEssay(question, input.actorUserId);
+
+      const attempt = batBuocAttemptTonTai(answer.attemptId);
+      if (attempt.status !== "submitted") {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_NOT_SUBMITTED",
+          message: "Chi duoc cham tay sau khi hoc sinh da nop bai.",
+          statusCode: 409,
+        });
+      }
+
+      if (!coCauTraLoiTextHopLe(answer)) {
+        throw new AuthError({
+          code: "ESSAY_ANSWER_EMPTY",
+          message: "Khong the cham tay khi cau tu luan chua co noi dung tra loi.",
+          statusCode: 400,
+        });
+      }
+
+      if (input.manualAwardedPoints < 0 || input.manualAwardedPoints > question.points) {
+        throw new AuthError({
+          code: "INVALID_INPUT",
+          message: "Diem cham tay phai nam trong khoang 0 den diem toi da cua cau hoi.",
+          statusCode: 400,
+        });
+      }
+
+      const updatedAnswer: ClassExamAttemptAnswerRecord = {
+        ...answer,
+        awardedPoints: lamTronDiemNen(input.manualAwardedPoints),
+        manualAwardedPoints: lamTronDiemNen(input.manualAwardedPoints),
+        gradingNote: input.gradingNote,
+        gradedBy: input.actorUserId,
+        gradedAt: input.gradedAt,
+        scoredAt: input.gradedAt,
+        updatedAt: input.gradedAt,
+      };
+      mockExamStore.attemptAnswersById.set(updatedAnswer.id, updatedAnswer);
+
+      const tongKet = tinhTongKetAttemptSauChamTay(attempt.id);
+      const updatedAttempt: ClassExamAttemptRecord = {
+        ...attempt,
+        finalScore: tongKet.finalScore,
+        pendingManualGradingCount: tongKet.pendingManualGradingCount,
+        updatedAt: input.gradedAt,
+      };
+      mockExamStore.attemptsById.set(updatedAttempt.id, updatedAttempt);
+
+      return {
+        answer: saoChep(updatedAnswer),
+        question: saoChep(question),
+        attempt: saoChep(updatedAttempt),
       };
     },
   };
