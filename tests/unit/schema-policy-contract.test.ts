@@ -52,6 +52,12 @@ const manualGradingMigrationFile = join(
   "migrations",
   "2026-03-17_09-10-00--manual-grading-foundation.sql",
 );
+const aiAssistedGradingMigrationFile = join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "2026-03-17_11-10-00--essay-ai-grading-suggestions-foundation.sql",
+);
 const policyFile = join(process.cwd(), "db", "policies", "2026-03-14_00-30-00--auth-foundation-rls.sql");
 const classPolicyFile = join(
   process.cwd(),
@@ -83,6 +89,12 @@ const manualGradingPolicyFile = join(
   "policies",
   "2026-03-17_09-20-00--manual-grading-foundation-rls.sql",
 );
+const aiAssistedGradingPolicyFile = join(
+  process.cwd(),
+  "db",
+  "policies",
+  "2026-03-17_11-20-00--essay-ai-grading-suggestions-foundation-rls.sql",
+);
 
 const migrationSql = readFileSync(migrationFile, "utf8");
 const sessionHardeningMigrationSql = readFileSync(sessionHardeningMigrationFile, "utf8");
@@ -93,12 +105,14 @@ const classExamsFoundationMigrationSql = readFileSync(classExamsFoundationMigrat
 const examQuestionsFoundationMigrationSql = readFileSync(examQuestionsFoundationMigrationFile, "utf8");
 const examAttemptAnswersMigrationSql = readFileSync(examAttemptAnswersMigrationFile, "utf8");
 const manualGradingMigrationSql = readFileSync(manualGradingMigrationFile, "utf8");
+const aiAssistedGradingMigrationSql = readFileSync(aiAssistedGradingMigrationFile, "utf8");
 const policySql = readFileSync(policyFile, "utf8");
 const classPolicySql = readFileSync(classPolicyFile, "utf8");
 const classExamsPolicySql = readFileSync(classExamsPolicyFile, "utf8");
 const examQuestionsPolicySql = readFileSync(examQuestionsPolicyFile, "utf8");
 const examAttemptAnswersPolicySql = readFileSync(examAttemptAnswersPolicyFile, "utf8");
 const manualGradingPolicySql = readFileSync(manualGradingPolicyFile, "utf8");
+const aiAssistedGradingPolicySql = readFileSync(aiAssistedGradingPolicyFile, "utf8");
 
 test("migration phai co cac bang auth nen tang", () => {
   assert.match(migrationSql, /create table if not exists public\.user_accounts/i);
@@ -191,6 +205,26 @@ test("migration manual grading phai mo rong attempt va answer cho cham tay", () 
   assert.match(manualGradingMigrationSql, /add column if not exists graded_by uuid null/i);
   assert.match(manualGradingMigrationSql, /create or replace function public\.app_is_exam_owner_by_attempt_answer/i);
   assert.match(manualGradingMigrationSql, /create or replace function public\.app_is_exam_owner_by_attempt/i);
+});
+
+test("migration AI-assisted grading phai co bang goi y va trigger guard essay", () => {
+  assert.match(aiAssistedGradingMigrationSql, /create table if not exists public\.ai_grading_suggestions/i);
+  assert.match(
+    aiAssistedGradingMigrationSql,
+    /uq_ai_grading_suggestions_one_pending_per_answer/i,
+  );
+  assert.match(
+    aiAssistedGradingMigrationSql,
+    /status in \('pending', 'accepted', 'rejected', 'superseded'\)/i,
+  );
+  assert.match(
+    aiAssistedGradingMigrationSql,
+    /create or replace function public\.app_is_exam_owner_by_ai_suggestion/i,
+  );
+  assert.match(
+    aiAssistedGradingMigrationSql,
+    /create or replace function public\.app_guard_ai_grading_suggestion_consistency/i,
+  );
 });
 
 test("migration admin review phai ghi actor audit tu reviewed_by khi auth.uid null", () => {
@@ -286,4 +320,12 @@ test("policy manual grading phai cho owner exam cham essay va cap nhat attempt s
   assert.match(manualGradingPolicySql, /eq\.question_type = 'essay_placeholder'/i);
   assert.match(manualGradingPolicySql, /app_is_exam_owner_by_attempt\(id, auth\.uid\(\)\)/i);
   assert.match(manualGradingPolicySql, /status = 'submitted'/i);
+});
+
+test("policy AI-assisted grading phai khoa suggestion theo owner exam hoac admin", () => {
+  assert.match(aiAssistedGradingPolicySql, /p_ai_grading_suggestions_select_owner_or_admin/i);
+  assert.match(aiAssistedGradingPolicySql, /p_ai_grading_suggestions_insert_owner_or_admin/i);
+  assert.match(aiAssistedGradingPolicySql, /p_ai_grading_suggestions_update_owner_or_admin/i);
+  assert.match(aiAssistedGradingPolicySql, /app_is_exam_owner_by_ai_suggestion/i);
+  assert.match(aiAssistedGradingPolicySql, /app_is_exam_owner_by_attempt_answer/i);
 });

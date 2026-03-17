@@ -1,7 +1,4 @@
-import type {
-  StudentExamResultRecord,
-  StudentExamReviewItemRecord,
-} from "@/types/exam";
+import type { StudentExamResultRecord, StudentExamReviewItemRecord } from "@/types/exam";
 
 export type CheDoKetQua = "not_started" | "in_progress" | "submitted";
 
@@ -52,7 +49,7 @@ export function docNhanChamTungCau(
       return `Đã chấm tay: ${item.answer.manualAwardedPoints}/${item.question.points} điểm.`;
     }
 
-    return "Đang chờ chấm tay.";
+    return "Đang chờ giáo viên hoặc AI-assisted grading hỗ trợ chấm.";
   }
 
   if (!item.answer) {

@@ -187,14 +187,17 @@ export function KetQuaExamToiThieu({ examCode }: KetQuaExamProps) {
                 <div className={styles.summaryItem}>
                   <span className={styles.summaryLabel}>Phần chờ chấm tay</span>
                   <span className={styles.summaryValue}>{duLieu.summary.pendingManualGradingCount}</span>
-                  <p className={styles.summaryNote}>Các câu tự luận chưa được AI grading trong task này.</p>
+                  <p className={styles.summaryNote}>
+                    Các câu tự luận còn chờ giáo viên hoặc AI-assisted grading hỗ trợ chấm xong.
+                  </p>
                 </div>
               </div>
 
               {cheDo === "in_progress" ? (
                 <div className={styles.actions}>
                   <p className={styles.note}>
-                    Attempt này chưa nộp, nên đây chưa phải kết quả hoàn chỉnh. Bạn có thể quay lại bài thi để tiếp tục làm hoặc nộp bài.
+                    Attempt này chưa nộp, nên đây chưa phải kết quả hoàn chỉnh. Bạn có thể quay lại bài
+                    thi để tiếp tục làm hoặc nộp bài.
                   </p>
                   <Link className={`${styles.buttonLink} ${styles.buttonPrimary}`} href={`/bai-thi/${examCode}`}>
                     Tiếp tục làm bài

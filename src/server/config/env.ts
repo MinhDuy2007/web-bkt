@@ -11,6 +11,8 @@ export type ServerEnv = {
   supabaseServiceRoleKey: string | null;
   databaseUrl: string | null;
   databaseExpectedUser: string | null;
+  aiGradingProviderMode: "mock" | "disabled";
+  aiGradingModelName: string;
   aiWorkerBaseUrl: string | null;
   javaSecurityServiceUrl: string | null;
 };
@@ -18,6 +20,7 @@ export type ServerEnv = {
 const AUTH_ADAPTER_MODES: AuthAdapterMode[] = ["mock", "supabase"];
 const SESSION_TTL_DEFAULT_MINUTES = 120;
 const SESSION_TOKEN_PEPPER_DEV_FALLBACK = "dev-only-session-token-pepper";
+const AI_GRADING_PROVIDER_MODES = ["mock", "disabled"] as const;
 let cachedServerEnv: ServerEnv | null = null;
 
 function docGiaTriMoiTruong(key: string): string {
@@ -67,6 +70,15 @@ function docCheDoAuth(): AuthAdapterMode {
   return rawMode as AuthAdapterMode;
 }
 
+function docCheDoAiGrading(): "mock" | "disabled" {
+  const rawMode = docGiaTriMoiTruong("AI_GRADING_PROVIDER_MODE") || "mock";
+  if (!AI_GRADING_PROVIDER_MODES.includes(rawMode as "mock" | "disabled")) {
+    throw new Error(`[env] AI_GRADING_PROVIDER_MODE khong hop le: ${rawMode}.`);
+  }
+
+  return rawMode as "mock" | "disabled";
+}
+
 function docSessionTokenPepper(appName: string): { value: string; usingFallback: boolean } {
   const configured = docGiaTriMoiTruong("SESSION_TOKEN_PEPPER");
   if (configured) {
@@ -109,6 +121,8 @@ export function layBienMoiTruongServer(): ServerEnv {
     supabaseServiceRoleKey: docGiaTriTuyChon("SUPABASE_SERVICE_ROLE_KEY"),
     databaseUrl: docGiaTriTuyChon("DATABASE_URL"),
     databaseExpectedUser: docGiaTriTuyChon("DATABASE_EXPECTED_USER"),
+    aiGradingProviderMode: docCheDoAiGrading(),
+    aiGradingModelName: docGiaTriMoiTruong("AI_GRADING_MODEL_NAME") || "mock-essay-grader-v1",
     aiWorkerBaseUrl: docGiaTriTuyChon("AI_WORKER_BASE_URL"),
     javaSecurityServiceUrl: docGiaTriTuyChon("JAVA_SECURITY_SERVICE_URL"),
   };

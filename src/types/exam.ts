@@ -15,6 +15,14 @@ export type ClassExamQuestionType = (typeof CLASS_EXAM_QUESTION_TYPES)[number];
 export const CLASS_EXAM_ANSWER_KEY_TYPES = CLASS_EXAM_QUESTION_TYPES;
 export type ClassExamAnswerKeyType = ClassExamQuestionType;
 
+export const AI_GRADING_SUGGESTION_STATUSES = [
+  "pending",
+  "accepted",
+  "rejected",
+  "superseded",
+] as const;
+export type AiGradingSuggestionStatus = (typeof AI_GRADING_SUGGESTION_STATUSES)[number];
+
 export type ClassExamRecord = {
   id: string;
   examCode: string;
@@ -153,6 +161,43 @@ export type EssayManualGradingQueueItemRecord = {
 };
 
 export type GradeEssayAttemptAnswerResult = {
+  answer: ClassExamAttemptAnswerRecord;
+  question: ClassExamQuestionRecord;
+  attempt: ClassExamAttemptRecord;
+};
+
+export type AiEssayGradingSuggestionRecord = {
+  id: string;
+  answerId: string;
+  suggestedPoints: number;
+  suggestedFeedback: string | null;
+  confidenceScore: number | null;
+  providerKind: string;
+  modelName: string;
+  promptVersion: string | null;
+  status: AiGradingSuggestionStatus;
+  responseJson: Record<string, unknown>;
+  generatedAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AiEssayGradingSuggestionItemRecord = {
+  suggestion: AiEssayGradingSuggestionRecord;
+  answer: ClassExamAttemptAnswerRecord;
+  question: ClassExamQuestionRecord;
+  attempt: ClassExamAttemptRecord;
+  student: {
+    userId: string;
+    email: string | null;
+    displayName: string | null;
+  };
+};
+
+export type ReviewAiEssaySuggestionResult = {
+  suggestion: AiEssayGradingSuggestionRecord;
   answer: ClassExamAttemptAnswerRecord;
   question: ClassExamQuestionRecord;
   attempt: ClassExamAttemptRecord;

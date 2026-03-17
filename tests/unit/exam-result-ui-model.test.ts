@@ -24,7 +24,7 @@ function taoAttempt(status: ClassExamAttemptRecord["status"]): ClassExamAttemptR
     submittedAt: status === "submitted" ? "2026-03-16T00:10:00.000Z" : null,
     autoGradedScore: status === "submitted" ? 2 : null,
     maxAutoGradedScore: status === "submitted" ? 3 : null,
-    finalScore: status === "submitted" ? null : null,
+    finalScore: null,
     pendingManualGradingCount: 1,
     createdAt: "2026-03-16T00:00:00.000Z",
     updatedAt: "2026-03-16T00:10:00.000Z",
@@ -55,23 +55,24 @@ function taoReviewItem(
 ): StudentExamReviewItemRecord {
   return {
     question: taoQuestion(questionType),
-    answer: answerText === null
-      ? null
-      : {
-          id: "answer-1",
-          attemptId: "attempt-1",
-          questionId: `question-${questionType}`,
-          answerText,
-          answerJson: {},
-          awardedPoints,
-          manualAwardedPoints,
-          gradingNote,
-          gradedBy: manualAwardedPoints === null ? null : "teacher-1",
-          gradedAt: manualAwardedPoints === null ? null : "2026-03-16T00:20:00.000Z",
-          scoredAt: awardedPoints === null ? null : "2026-03-16T00:12:00.000Z",
-          createdAt: "2026-03-16T00:05:00.000Z",
-          updatedAt: "2026-03-16T00:12:00.000Z",
-        },
+    answer:
+      answerText === null
+        ? null
+        : {
+            id: "answer-1",
+            attemptId: "attempt-1",
+            questionId: `question-${questionType}`,
+            answerText,
+            answerJson: {},
+            awardedPoints,
+            manualAwardedPoints,
+            gradingNote,
+            gradedBy: manualAwardedPoints === null ? null : "teacher-1",
+            gradedAt: manualAwardedPoints === null ? null : "2026-03-16T00:20:00.000Z",
+            scoredAt: awardedPoints === null ? null : "2026-03-16T00:12:00.000Z",
+            createdAt: "2026-03-16T00:05:00.000Z",
+            updatedAt: "2026-03-16T00:12:00.000Z",
+          },
   };
 }
 
@@ -139,7 +140,10 @@ test("doc tra loi review va nhan cham tung cau dung theo trang thai", () => {
   assert.equal(docTraLoiDeReview(emptyItem), "Chưa có câu trả lời đã lưu.");
   assert.equal(docNhanChamTungCau(mcqItem, false), "Attempt chưa nộp, chưa có kết quả hoàn chỉnh.");
   assert.equal(docNhanChamTungCau(mcqItem, true), "Đã chấm tự động: 3/3 điểm.");
-  assert.equal(docNhanChamTungCau(essayPendingItem, true), "Đang chờ chấm tay.");
+  assert.equal(
+    docNhanChamTungCau(essayPendingItem, true),
+    "Đang chờ giáo viên hoặc AI-assisted grading hỗ trợ chấm.",
+  );
   assert.equal(docNhanChamTungCau(essayGradedItem, true), "Đã chấm tay: 2.5/3 điểm.");
   assert.equal(docNhanChamTungCau(emptyItem, true), "Không có câu trả lời đã lưu.");
   assert.equal(docGhiChuChamTay(essayPendingItem), null);

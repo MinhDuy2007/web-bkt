@@ -17,11 +17,11 @@ export default async function ChamTuLuanPage({ params }: PageProps) {
     <main className={styles.page}>
       <section className={styles.shell}>
         <header className={styles.header}>
-          <p className={styles.kicker}>Teacher Manual Grading</p>
-          <h1 className={styles.title}>Chấm tay câu tự luận</h1>
+          <p className={styles.kicker}>Teacher Review Console</p>
+          <h1 className={styles.title}>Chấm tự luận và duyệt gợi ý AI</h1>
           <p className={styles.subtitle}>
-            Giao diện này chỉ dùng route server-side để đọc queue chấm tay và cập nhật điểm cuối cho
-            attempt. Frontend không tự tính lại điểm cuối.
+            Màn hình này chỉ dùng route server-side để đọc queue, tạo gợi ý AI, và cập nhật điểm
+            cuối sau khi giáo viên chấp nhận hoặc chấm tay. Frontend không tự tính lại điểm cuối.
           </p>
         </header>
 

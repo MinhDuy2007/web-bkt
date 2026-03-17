@@ -1,0 +1,60 @@
+﻿[THOI GIAN TEST]
+2026-03-17 12:21:31
+
+[MUC TIEU TEST]
+Kiem tra task 13: AI-assisted grading cho essay theo huong server-side only, teacher duyet cuoi, reject khong doi final score va accept moi cap nhat final score.
+
+[MO HINH AI]
+- Provider mode: mock (server-side only)
+- Khong co frontend goi model truc tiep
+- Khong coi day la production AI pipeline hoan chinh
+
+[LENH DA CHAY]
+1) npm run db:prepare-migrations
+2) npm run db:push:dry
+3) npm run db:push
+4) npm run lint
+5) npm run typecheck
+6) npm run test
+7) node --import tsx scripts/task13-ai-assisted-grading-proof.ts setup
+8) npm run dev -- --hostname 127.0.0.1 --port 3000
+9) npx playwright screenshot ... /giao-vien/cham-tu-luan/[examCode]
+10) node --import tsx scripts/task13-ai-assisted-grading-proof.ts verify
+11) npx playwright screenshot ... /ket-qua/[examCode]
+
+[KET QUA TOM TAT]
+- db prepare exit code: 0
+- db push dry exit code: 0
+- db push exit code: 0
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- ui setup exit code: 0
+- runtime verify exit code: 0
+- teacher screenshot exit code: 0
+- student result screenshot exit code: 0
+- HTTP status root: 200
+- examCode proof: EXZ6P25XYH
+- Anh giao dien teacher: teacher-ai-assisted-grading.jpg
+- Anh giao dien hoc sinh: student-result-after-ai-accept.jpg
+
+[FILE LOG]
+- db-prepare.log
+- db-push-dry.log
+- db-push.log
+- lint.log
+- typecheck.log
+- test.log
+- ui-setup.log
+- runtime-verify.log
+- dev-server.log
+- dev-server.err.log
+- teacher-screenshot.log
+- student-screenshot.log
+
+[GHI CHU]
+- Proof runtime verify da kiem tra reject truoc, sau do tao goi y moi va accept.
+- Final score chi doi sau accept; reject khong duoc doi final score.
+- Screenshot teacher duoc chup khi suggestion dang pending de the hien AI chi la goi y cho teacher.
+- Screenshot student result duoc chup sau accept de the hien result doc du lieu server sau cap nhat.
+- Session token chi duoc luu tam trong file state/storage va da duoc xoa sau khi ket thuc.

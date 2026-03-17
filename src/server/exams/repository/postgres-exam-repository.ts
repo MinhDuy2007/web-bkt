@@ -1,14 +1,17 @@
 import { AuthError } from "@/server/auth/errors";
 import { layPostgresPool } from "@/server/db/postgres-pool";
 import type {
+  CreateAiEssaySuggestionInput,
   CreateClassExamInput,
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
   GradeEssayAttemptAnswerInput,
   GetStudentExamPlayerInput,
+  ListAiEssaySuggestionsInput,
   ListEssayAnswersForManualGradingInput,
   ListAttemptAnswersInput,
+  ReviewAiEssaySuggestionInput,
   SubmitClassExamAttemptInput,
   StartClassExamInput,
   UpsertAttemptAnswerInput,
@@ -16,6 +19,9 @@ import type {
 } from "@/server/exams/repository/exam-repository";
 import { chamDiemNenChoCauHoi, lamTronDiemNen } from "@/server/exams/scoring";
 import {
+  AI_GRADING_SUGGESTION_STATUSES,
+  type AiEssayGradingSuggestionItemRecord,
+  type AiEssayGradingSuggestionRecord,
   CLASS_EXAM_ANSWER_KEY_TYPES,
   CLASS_EXAM_ATTEMPT_STATUSES,
   CLASS_EXAM_QUESTION_TYPES,
@@ -33,6 +39,7 @@ import {
   type EssayManualGradingQueueItemRecord,
   type GradeEssayAttemptAnswerResult,
   type MyCreatedClassExamItem,
+  type ReviewAiEssaySuggestionResult,
   type StartClassExamResult,
   type StudentExamPlayerRecord,
   type SubmitClassExamAttemptResult,
@@ -167,6 +174,24 @@ type EssayManualGradingRow = AttemptAnswerRow & {
   attempt_updated_at: string;
   student_email: string | null;
   student_display_name: string | null;
+};
+
+type AiGradingSuggestionRow = {
+  id: string;
+  answer_id: string;
+  suggested_points: string | number;
+  suggested_feedback: string | null;
+  confidence_score: string | number | null;
+  provider_kind: string;
+  model_name: string;
+  prompt_version: string | null;
+  status: string;
+  response_json: Record<string, unknown> | null;
+  generated_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 function docGiaTriEnum<T extends readonly string[]>(
@@ -319,6 +344,30 @@ function mapAttemptAnswerRow(row: AttemptAnswerRow): ClassExamAttemptAnswerRecor
   };
 }
 
+function mapAiGradingSuggestionRow(row: AiGradingSuggestionRow): AiEssayGradingSuggestionRecord {
+  return {
+    id: row.id,
+    answerId: row.answer_id,
+    suggestedPoints: docDiemKhongAm(row.suggested_points, "ai_grading_suggestions.suggested_points") ?? 0,
+    suggestedFeedback: row.suggested_feedback,
+    confidenceScore: docDiemKhongAm(row.confidence_score, "confidence_score"),
+    providerKind: row.provider_kind,
+    modelName: row.model_name,
+    promptVersion: row.prompt_version,
+    status: docGiaTriEnum(
+      row.status,
+      AI_GRADING_SUGGESTION_STATUSES,
+      "ai_grading_suggestions.status",
+    ),
+    responseJson: docJsonObject(row.response_json, "ai_grading_suggestions.response_json"),
+    generatedAt: row.generated_at,
+    reviewedBy: row.reviewed_by,
+    reviewedAt: row.reviewed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function coTraLoiTextCoNoiDung(answer: ClassExamAttemptAnswerRecord | null): boolean {
   return typeof answer?.answerText === "string" && answer.answerText.trim().length > 0;
 }
@@ -354,6 +403,14 @@ function taoLoiPostgresExam(action: string, error: unknown): never {
     });
   }
 
+  if (code === "23505" && message.includes("uq_ai_grading_suggestions_one_pending_per_answer")) {
+    throw new AuthError({
+      code: "AI_GRADING_SUGGESTION_PENDING_EXISTS",
+      message: "Dang ton tai mot goi y AI pending cho cau tra loi nay.",
+      statusCode: 409,
+    });
+  }
+
   if (message.includes("ANSWER_KEY_TYPE_MISMATCH")) {
     throw new AuthError({
       code: "INVALID_ANSWER_KEY",
@@ -382,6 +439,14 @@ function taoLoiPostgresExam(action: string, error: unknown): never {
     throw new AuthError({
       code: "ESSAY_MANUAL_GRADING_ONLY",
       message: "Chi cau essay_placeholder moi duoc cham tay trong task nay.",
+      statusCode: 400,
+    });
+  }
+
+  if (message.includes("AI_SUGGESTED_POINTS_OUT_OF_RANGE")) {
+    throw new AuthError({
+      code: "AI_SUGGESTED_POINTS_OUT_OF_RANGE",
+      message: "Diem goi y AI nam ngoai khoang diem hop le cua cau hoi.",
       statusCode: 400,
     });
   }
@@ -548,6 +613,206 @@ async function batBuocCauEssayTonTaiVaCoQuyenCham(
   }
 
   return row;
+}
+
+function mapEssayManualGradingRowToAttempt(row: EssayManualGradingRow): ClassExamAttemptRecord {
+  return mapClassExamAttemptRow({
+    id: row.attempt_id,
+    class_exam_id: row.question_class_exam_id,
+    user_id: row.attempt_user_id,
+    status: row.attempt_status,
+    started_at: row.attempt_started_at,
+    submitted_at: row.attempt_submitted_at,
+    auto_graded_score: row.attempt_auto_graded_score,
+    max_auto_graded_score: row.attempt_max_auto_graded_score,
+    final_score: row.attempt_final_score,
+    pending_manual_grading_count: row.attempt_pending_manual_grading_count,
+    created_at: row.attempt_created_at,
+    updated_at: row.attempt_updated_at,
+  });
+}
+
+function mapEssayManualGradingRowToQuestion(row: EssayManualGradingRow): ClassExamQuestionRecord {
+  return mapExamQuestionRow({
+    id: row.question_id,
+    class_exam_id: row.question_class_exam_id,
+    question_order: row.question_order,
+    question_type: row.question_type,
+    prompt_text: row.prompt_text,
+    points: row.points,
+    metadata_json: row.metadata_json,
+    created_by_user_id: row.created_by_user_id,
+    created_at: row.question_created_at,
+    updated_at: row.question_updated_at,
+  });
+}
+
+async function tinhTongKetAttemptSauCham(
+  client: {
+    query: <TRow>(
+      queryText: string,
+      values?: unknown[],
+    ) => Promise<{ rows: TRow[]; rowCount: number | null }>;
+  },
+  attemptId: string,
+): Promise<{
+  finalScore: number | null;
+  pendingManualGradingCount: number;
+}> {
+  const answerRowsResult = await client.query<
+    AttemptAnswerRow & {
+      question_type: string;
+    }
+  >(
+    `select aa.*, q.question_type
+     from public.class_exam_attempt_answers aa
+     inner join public.exam_questions q on q.id = aa.question_id
+     where aa.attempt_id = $1`,
+    [attemptId],
+  );
+
+  let finalScore = 0;
+  let pendingManualGradingCount = 0;
+  for (const row of answerRowsResult.rows) {
+    const answer = mapAttemptAnswerRow(row);
+    finalScore += answer.awardedPoints ?? 0;
+    if (
+      row.question_type === "essay_placeholder" &&
+      coTraLoiTextCoNoiDung(answer) &&
+      answer.manualAwardedPoints === null
+    ) {
+      pendingManualGradingCount += 1;
+    }
+  }
+
+  return {
+    finalScore: pendingManualGradingCount === 0 ? lamTronDiemNen(finalScore) : null,
+    pendingManualGradingCount,
+  };
+}
+
+async function capNhatTongKetAttemptSauCham(
+  client: {
+    query: <TRow>(
+      queryText: string,
+      values?: unknown[],
+    ) => Promise<{ rows: TRow[]; rowCount: number | null }>;
+  },
+  attemptId: string,
+  updatedAt: string,
+): Promise<ClassExamAttemptRecord> {
+  const tongKet = await tinhTongKetAttemptSauCham(client, attemptId);
+  const attemptResult = await client.query<ClassExamAttemptRow>(
+    `update public.class_exam_attempts
+     set
+       final_score = $2,
+       pending_manual_grading_count = $3,
+       updated_at = $4
+     where id = $1
+     returning *`,
+    [attemptId, tongKet.finalScore, tongKet.pendingManualGradingCount, updatedAt],
+  );
+  const updatedAttemptRow = attemptResult.rows[0];
+  if (!updatedAttemptRow) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_NOT_FOUND",
+      message: "Khong tim thay luot lam bai de cap nhat tong ket.",
+      statusCode: 404,
+    });
+  }
+
+  return mapClassExamAttemptRow(updatedAttemptRow);
+}
+
+async function supersedePendingAiSuggestionsNoCheck(
+  client: {
+    query: <TRow>(
+      queryText: string,
+      values?: unknown[],
+    ) => Promise<{ rows: TRow[]; rowCount: number | null }>;
+  },
+  answerId: string,
+  updatedAt: string,
+  excludeSuggestionId?: string,
+): Promise<AiEssayGradingSuggestionRecord[]> {
+  const values: unknown[] = [answerId, updatedAt];
+  let filterSql = "";
+  if (excludeSuggestionId) {
+    values.push(excludeSuggestionId);
+    filterSql = " and id <> $3";
+  }
+
+  const result = await client.query<AiGradingSuggestionRow>(
+    `update public.ai_grading_suggestions
+     set status = 'superseded',
+         updated_at = $2
+     where answer_id = $1
+       and status = 'pending'${filterSql}
+     returning *`,
+    values,
+  );
+
+  return result.rows.map((row) => mapAiGradingSuggestionRow(row));
+}
+
+async function batBuocGoiYChamAITonTaiVaCoQuyen(
+  client: {
+    query: <TRow>(
+      queryText: string,
+      values?: unknown[],
+    ) => Promise<{ rows: TRow[]; rowCount: number | null }>;
+  },
+  suggestionId: string,
+  actorUserId: string,
+  lock: boolean,
+): Promise<{
+  suggestionRow: AiGradingSuggestionRow;
+  essayRow: EssayManualGradingRow;
+}> {
+  const suggestionResult = await client.query<AiGradingSuggestionRow>(
+    `select *
+     from public.ai_grading_suggestions
+     where id = $1
+     limit 1${lock ? " for update" : ""}`,
+    [suggestionId],
+  );
+  const suggestionRow = suggestionResult.rows[0];
+  if (!suggestionRow) {
+    throw new AuthError({
+      code: "AI_GRADING_SUGGESTION_NOT_FOUND",
+      message: "Khong tim thay goi y cham AI theo suggestionId.",
+      statusCode: 404,
+    });
+  }
+
+  const essayRow = await batBuocCauEssayTonTaiVaCoQuyenCham(
+    client,
+    suggestionRow.answer_id,
+    actorUserId,
+    lock,
+  );
+
+  return {
+    suggestionRow,
+    essayRow,
+  };
+}
+
+function taoBanGhiGoiYChamAITuDuLieu(
+  suggestionRow: AiGradingSuggestionRow,
+  essayRow: EssayManualGradingRow,
+): AiEssayGradingSuggestionItemRecord {
+  return {
+    suggestion: mapAiGradingSuggestionRow(suggestionRow),
+    answer: mapAttemptAnswerRow(essayRow),
+    question: mapEssayManualGradingRowToQuestion(essayRow),
+    attempt: mapEssayManualGradingRowToAttempt(essayRow),
+    student: {
+      userId: essayRow.attempt_user_id,
+      email: essayRow.student_email,
+      displayName: essayRow.student_display_name,
+    },
+  };
 }
 
 export function taoPostgresExamRepository(): ExamRepository {
@@ -1054,62 +1319,18 @@ export function taoPostgresExamRepository(): ExamRepository {
             statusCode: 404,
           });
         }
-
-        const answerRowsResult = await client.query<
-          AttemptAnswerRow & {
-            question_type: string;
-          }
-        >(
-          `select aa.*, q.question_type
-           from public.class_exam_attempt_answers aa
-           inner join public.exam_questions q on q.id = aa.question_id
-           where aa.attempt_id = $1`,
-          [currentRow.attempt_id],
+        await supersedePendingAiSuggestionsNoCheck(client, input.answerId, input.gradedAt);
+        const updatedAttempt = await capNhatTongKetAttemptSauCham(
+          client,
+          currentRow.attempt_id,
+          input.gradedAt,
         );
-
-        let finalScore = 0;
-        let pendingManualGradingCount = 0;
-        for (const row of answerRowsResult.rows) {
-          const answer = mapAttemptAnswerRow(row);
-          finalScore += answer.awardedPoints ?? 0;
-          if (
-            row.question_type === "essay_placeholder" &&
-            coTraLoiTextCoNoiDung(answer) &&
-            answer.manualAwardedPoints === null
-          ) {
-            pendingManualGradingCount += 1;
-          }
-        }
-
-        const attemptResult = await client.query<ClassExamAttemptRow>(
-          `update public.class_exam_attempts
-           set
-             final_score = $2,
-             pending_manual_grading_count = $3,
-             updated_at = $4
-           where id = $1
-           returning *`,
-          [
-            currentRow.attempt_id,
-            pendingManualGradingCount === 0 ? lamTronDiemNen(finalScore) : null,
-            pendingManualGradingCount,
-            input.gradedAt,
-          ],
-        );
-        const updatedAttemptRow = attemptResult.rows[0];
-        if (!updatedAttemptRow) {
-          throw new AuthError({
-            code: "EXAM_ATTEMPT_NOT_FOUND",
-            message: "Khong tim thay luot lam bai de cap nhat tong ket.",
-            statusCode: 404,
-          });
-        }
 
         await client.query("commit");
         return {
           answer: mapAttemptAnswerRow(updatedAnswerRow),
           question,
-          attempt: mapClassExamAttemptRow(updatedAttemptRow),
+          attempt: updatedAttempt,
         };
       } catch (error) {
         await rollbackAnToan(client);
@@ -1117,6 +1338,293 @@ export function taoPostgresExamRepository(): ExamRepository {
           throw error;
         }
         taoLoiPostgresExam("cham tay cau essay", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async createAiEssaySuggestion(
+      input: CreateAiEssaySuggestionInput,
+    ): Promise<AiEssayGradingSuggestionItemRecord> {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+
+        const essayRow = await batBuocCauEssayTonTaiVaCoQuyenCham(
+          client,
+          input.answerId,
+          input.actorUserId,
+          true,
+        );
+        if (essayRow.attempt_status !== "submitted") {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_NOT_SUBMITTED",
+            message: "Chi duoc tao goi y AI sau khi hoc sinh da nop bai.",
+            statusCode: 409,
+          });
+        }
+        const question = mapEssayManualGradingRowToQuestion(essayRow);
+        if (!coTraLoiTextCoNoiDung(mapAttemptAnswerRow(essayRow))) {
+          throw new AuthError({
+            code: "ESSAY_ANSWER_EMPTY",
+            message: "Khong the tao goi y AI khi cau tu luan chua co noi dung tra loi.",
+            statusCode: 400,
+          });
+        }
+        if (input.suggestedPoints < 0 || input.suggestedPoints > question.points) {
+          throw new AuthError({
+            code: "AI_SUGGESTED_POINTS_OUT_OF_RANGE",
+            message: "Diem goi y AI nam ngoai khoang diem hop le cua cau hoi.",
+            statusCode: 400,
+          });
+        }
+
+        await supersedePendingAiSuggestionsNoCheck(client, input.answerId, input.generatedAt);
+
+        const suggestionResult = await client.query<AiGradingSuggestionRow>(
+          `insert into public.ai_grading_suggestions (
+             answer_id,
+             suggested_points,
+             suggested_feedback,
+             confidence_score,
+             provider_kind,
+             model_name,
+             prompt_version,
+             status,
+             response_json,
+             generated_at,
+             reviewed_by,
+             reviewed_at,
+             created_at,
+             updated_at
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, 'pending', $8::jsonb, $9, null, null, $9, $9)
+           returning *`,
+          [
+            input.answerId,
+            lamTronDiemNen(input.suggestedPoints),
+            input.suggestedFeedback,
+            input.confidenceScore,
+            input.providerKind,
+            input.modelName,
+            input.promptVersion,
+            JSON.stringify(input.responseJson),
+            input.generatedAt,
+          ],
+        );
+        const suggestionRow = suggestionResult.rows[0];
+        if (!suggestionRow) {
+          throw new AuthError({
+            code: "POSTGRES_DATA_INVALID",
+            message: "[postgres-exam] Khong tao duoc goi y cham AI.",
+            statusCode: 500,
+          });
+        }
+
+        await client.query("commit");
+        return taoBanGhiGoiYChamAITuDuLieu(suggestionRow, essayRow);
+      } catch (error) {
+        await rollbackAnToan(client);
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("tao goi y cham AI cho essay", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async listAiEssaySuggestions(
+      input: ListAiEssaySuggestionsInput,
+    ): Promise<AiEssayGradingSuggestionItemRecord[]> {
+      const client = await pool.connect();
+      try {
+        const examRow = await batBuocExamTonTaiVaCoQuyenSua(
+          client,
+          input.examCode,
+          input.actorUserId,
+          false,
+        );
+
+        const values: unknown[] = [examRow.id];
+        let answerFilterSql = "";
+        if (input.answerId) {
+          values.push(input.answerId);
+          answerFilterSql = " and ags.answer_id = $2";
+        }
+
+        const suggestionIdsResult = await client.query<{ id: string }>(
+          `select ags.id
+           from public.ai_grading_suggestions ags
+           inner join public.class_exam_attempt_answers aa on aa.id = ags.answer_id
+           inner join public.exam_questions q on q.id = aa.question_id
+           where q.class_exam_id = $1${answerFilterSql}
+           order by ags.generated_at desc, ags.created_at desc`,
+          values,
+        );
+
+        const items: AiEssayGradingSuggestionItemRecord[] = [];
+        for (const row of suggestionIdsResult.rows) {
+          const record = await batBuocGoiYChamAITonTaiVaCoQuyen(
+            client,
+            row.id,
+            input.actorUserId,
+            false,
+          );
+          items.push(taoBanGhiGoiYChamAITuDuLieu(record.suggestionRow, record.essayRow));
+        }
+
+        return items;
+      } catch (error) {
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("liet ke goi y cham AI", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async reviewAiEssaySuggestion(
+      input: ReviewAiEssaySuggestionInput,
+    ): Promise<ReviewAiEssaySuggestionResult> {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+
+        const record = await batBuocGoiYChamAITonTaiVaCoQuyen(
+          client,
+          input.suggestionId,
+          input.actorUserId,
+          true,
+        );
+        const currentSuggestion = mapAiGradingSuggestionRow(record.suggestionRow);
+        if (currentSuggestion.status !== "pending") {
+          throw new AuthError({
+            code: "AI_GRADING_SUGGESTION_ALREADY_REVIEWED",
+            message: "Goi y cham AI nay da duoc xu ly truoc do.",
+            statusCode: 409,
+          });
+        }
+
+        const question = mapEssayManualGradingRowToQuestion(record.essayRow);
+        const currentAttempt = mapEssayManualGradingRowToAttempt(record.essayRow);
+
+        const suggestionResult = await client.query<AiGradingSuggestionRow>(
+          `update public.ai_grading_suggestions
+           set
+             status = $2,
+             reviewed_by = $3,
+             reviewed_at = $4,
+             updated_at = $4
+           where id = $1
+           returning *`,
+          [
+            input.suggestionId,
+            input.action === "accept" ? "accepted" : "rejected",
+            input.actorUserId,
+            input.reviewedAt,
+          ],
+        );
+        const updatedSuggestionRow = suggestionResult.rows[0];
+        if (!updatedSuggestionRow) {
+          throw new AuthError({
+            code: "AI_GRADING_SUGGESTION_NOT_FOUND",
+            message: "Khong tim thay goi y cham AI theo suggestionId.",
+            statusCode: 404,
+          });
+        }
+
+        if (input.action === "reject") {
+          await client.query("commit");
+          return {
+            suggestion: mapAiGradingSuggestionRow(updatedSuggestionRow),
+            answer: mapAttemptAnswerRow(record.essayRow),
+            question,
+            attempt: currentAttempt,
+          };
+        }
+
+        await supersedePendingAiSuggestionsNoCheck(
+          client,
+          record.essayRow.id,
+          input.reviewedAt,
+          input.suggestionId,
+        );
+
+        const answerResult = await client.query<AttemptAnswerRow>(
+          `update public.class_exam_attempt_answers
+           set
+             awarded_points = $2,
+             manual_awarded_points = $2,
+             grading_note = $3,
+             graded_by = $4,
+             graded_at = $5,
+             scored_at = $5,
+             updated_at = $5
+           where id = $1
+           returning *`,
+          [
+            record.essayRow.id,
+            mapAiGradingSuggestionRow(updatedSuggestionRow).suggestedPoints,
+            updatedSuggestionRow.suggested_feedback,
+            input.actorUserId,
+            input.reviewedAt,
+          ],
+        );
+        const updatedAnswerRow = answerResult.rows[0];
+        if (!updatedAnswerRow) {
+          throw new AuthError({
+            code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+            message: "Khong tim thay cau tra loi can ap goi y AI.",
+            statusCode: 404,
+          });
+        }
+
+        const updatedAttempt = await capNhatTongKetAttemptSauCham(
+          client,
+          record.essayRow.attempt_id,
+          input.reviewedAt,
+        );
+
+        await client.query("commit");
+        return {
+          suggestion: mapAiGradingSuggestionRow(updatedSuggestionRow),
+          answer: mapAttemptAnswerRow(updatedAnswerRow),
+          question,
+          attempt: updatedAttempt,
+        };
+      } catch (error) {
+        await rollbackAnToan(client);
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("review goi y cham AI", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async supersedePendingAiSuggestionsForAnswer(
+      answerId: string,
+      actorUserId: string,
+      updatedAt: string,
+    ): Promise<AiEssayGradingSuggestionRecord[]> {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+
+        await batBuocCauEssayTonTaiVaCoQuyenCham(client, answerId, actorUserId, true);
+        const updated = await supersedePendingAiSuggestionsNoCheck(client, answerId, updatedAt);
+
+        await client.query("commit");
+        return updated;
+      } catch (error) {
+        await rollbackAnToan(client);
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("dong cac goi y AI pending theo answer", error);
       } finally {
         client.release();
       }

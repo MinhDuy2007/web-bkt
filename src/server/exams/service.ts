@@ -4,6 +4,7 @@ import {
   batBuocQuyenTaoLop,
 } from "@/server/auth/permissions";
 import { layPhienDangNhap } from "@/server/auth/service";
+import { layAiEssayGradingProvider } from "@/server/exams/ai-grading-provider";
 import { layExamRepository } from "@/server/exams/repository";
 import type {
   AnswerKeyPayload,
@@ -17,6 +18,7 @@ import type {
   UpdateExamQuestionInput,
 } from "@/server/exams/repository/exam-repository";
 import type {
+  AiEssayGradingSuggestionItemRecord,
   ClassExamAttemptAnswerItemRecord,
   ClassExamAttemptRecord,
   ClassExamQuestionItemRecord,
@@ -25,6 +27,7 @@ import type {
   EssayManualGradingQueueItemRecord,
   GradeEssayAttemptAnswerResult,
   MyCreatedClassExamItem,
+  ReviewAiEssaySuggestionResult,
   StartClassExamResult,
   StudentExamPlayerRecord,
   StudentExamResultRecord,
@@ -80,6 +83,15 @@ export type NopBaiKiemTraPayload = {
 export type ChamTayCauEssayPayload = {
   manualAwardedPoints: number;
   gradingNote: string | null;
+};
+
+export type TaoGoiYChamAIChoEssayPayload = {
+  examCode: string;
+  answerId: string;
+};
+
+export type XuLyGoiYChamAIPayload = {
+  action: "accept" | "reject";
 };
 
 function docObject(payload: unknown): Record<string, unknown> {
@@ -562,6 +574,10 @@ export function chuanHoaAnswerId(rawAnswerId: unknown): string {
   return docUuid(rawAnswerId, "answerId");
 }
 
+export function chuanHoaSuggestionId(rawSuggestionId: unknown): string {
+  return docUuid(rawSuggestionId, "suggestionId");
+}
+
 export function chuanHoaAttemptId(rawAttemptId: unknown): string {
   return docUuid(rawAttemptId, "attemptId");
 }
@@ -590,6 +606,39 @@ export function chuanHoaChamTayCauEssayPayload(payload: unknown): ChamTayCauEssa
   return {
     manualAwardedPoints: docSoDuong(data.manualAwardedPoints, "manualAwardedPoints", 0, 1000),
     gradingNote: docChuoiTuyChon(data.gradingNote, "gradingNote", 4000),
+  };
+}
+
+export function chuanHoaTaoGoiYChamAIChoEssayPayload(payload: unknown): TaoGoiYChamAIChoEssayPayload {
+  const data = docObject(payload);
+  const examCode = docChuoi(data.examCode, "examCode", 6, 16).toUpperCase();
+  if (!MA_BAI_KIEM_TRA_PATTERN.test(examCode)) {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: "Truong examCode khong dung dinh dang.",
+      statusCode: 400,
+    });
+  }
+
+  return {
+    examCode,
+    answerId: chuanHoaAnswerId(data.answerId),
+  };
+}
+
+export function chuanHoaXuLyGoiYChamAIPayload(payload: unknown): XuLyGoiYChamAIPayload {
+  const data = docObject(payload);
+  const action = data.action;
+  if (action !== "accept" && action !== "reject") {
+    throw new AuthError({
+      code: "INVALID_INPUT",
+      message: "Truong action chi chap nhan accept hoac reject.",
+      statusCode: 400,
+    });
+  }
+
+  return {
+    action,
   };
 }
 
@@ -919,4 +968,96 @@ export async function chamTayCauEssayChoAttempt(
   };
 
   return repository.gradeEssayAttemptAnswer(input);
+}
+
+export async function taoGoiYChamAIChoEssay(
+  token: string,
+  payload: TaoGoiYChamAIChoEssayPayload,
+): Promise<AiEssayGradingSuggestionItemRecord> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+  const normalized = chuanHoaTaoGoiYChamAIChoEssayPayload(payload);
+
+  const queue = await repository.listEssayAnswersForManualGrading({
+    examCode: normalized.examCode,
+    actorUserId: verifiedSession.user.id,
+  });
+  const target = queue.find((item) => item.answer.id === normalized.answerId);
+  if (!target) {
+    throw new AuthError({
+      code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+      message: "Khong tim thay cau tra loi essay can tao goi y AI trong queue hien tai.",
+      statusCode: 404,
+    });
+  }
+
+  const provider = layAiEssayGradingProvider();
+  const suggestion = await provider.generateEssaySuggestion({
+    answer: target.answer,
+    question: target.question,
+    attempt: target.attempt,
+  });
+
+  return repository.createAiEssaySuggestion({
+    answerId: target.answer.id,
+    actorUserId: verifiedSession.user.id,
+    suggestedPoints: suggestion.suggestedPoints,
+    suggestedFeedback: suggestion.suggestedFeedback,
+    confidenceScore: suggestion.confidenceScore,
+    providerKind: suggestion.providerKind,
+    modelName: suggestion.modelName,
+    promptVersion: suggestion.promptVersion,
+    responseJson: suggestion.responseJson,
+    generatedAt: new Date().toISOString(),
+  });
+}
+
+export async function lietKeGoiYChamAIChoTeacher(
+  token: string,
+  examCode: string,
+  answerId?: string | null,
+): Promise<AiEssayGradingSuggestionItemRecord[]> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+  const normalizedPayload = chuanHoaVaoBaiKiemTraPayload({ examCode });
+
+  return repository.listAiEssaySuggestions({
+    examCode: normalizedPayload.examCode,
+    actorUserId: verifiedSession.user.id,
+    answerId: answerId ? chuanHoaAnswerId(answerId) : null,
+  });
+}
+
+export async function chapNhanGoiYChamAI(
+  token: string,
+  suggestionId: string,
+): Promise<ReviewAiEssaySuggestionResult> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+
+  return repository.reviewAiEssaySuggestion({
+    suggestionId: chuanHoaSuggestionId(suggestionId),
+    actorUserId: verifiedSession.user.id,
+    action: "accept",
+    reviewedAt: new Date().toISOString(),
+  });
+}
+
+export async function boQuaGoiYChamAI(
+  token: string,
+  suggestionId: string,
+): Promise<ReviewAiEssaySuggestionResult> {
+  const session = await layPhienDangNhap(token);
+  const verifiedSession = batBuocQuyenTaoLop(session);
+  const repository = layExamRepository();
+
+  return repository.reviewAiEssaySuggestion({
+    suggestionId: chuanHoaSuggestionId(suggestionId),
+    actorUserId: verifiedSession.user.id,
+    action: "reject",
+    reviewedAt: new Date().toISOString(),
+  });
 }

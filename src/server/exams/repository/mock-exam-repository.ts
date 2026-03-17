@@ -7,20 +7,25 @@ import {
 } from "@/server/classes/repository/mock-classroom-repository";
 import { chamDiemNenChoCauHoi, lamTronDiemNen } from "@/server/exams/scoring";
 import type {
+  CreateAiEssaySuggestionInput,
   CreateClassExamInput,
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
   ExamRepository,
   GradeEssayAttemptAnswerInput,
   GetStudentExamPlayerInput,
+  ListAiEssaySuggestionsInput,
   ListEssayAnswersForManualGradingInput,
   ListAttemptAnswersInput,
+  ReviewAiEssaySuggestionInput,
   SubmitClassExamAttemptInput,
   StartClassExamInput,
   UpsertAttemptAnswerInput,
   UpdateExamQuestionInput,
 } from "@/server/exams/repository/exam-repository";
 import type {
+  AiEssayGradingSuggestionItemRecord,
+  AiEssayGradingSuggestionRecord,
   ClassExamAttemptAnswerItemRecord,
   ClassExamAttemptAnswerRecord,
   ClassExamAnswerKeyRecord,
@@ -31,6 +36,7 @@ import type {
   EssayManualGradingQueueItemRecord,
   GradeEssayAttemptAnswerResult,
   MyCreatedClassExamItem,
+  ReviewAiEssaySuggestionResult,
   StartClassExamResult,
   StudentExamPlayerRecord,
   SubmitClassExamAttemptResult,
@@ -47,6 +53,8 @@ type ExamStore = {
   attemptAnswersById: Map<string, ClassExamAttemptAnswerRecord>;
   attemptAnswerIdByAttemptAndQuestion: Map<string, string>;
   attemptAnswerIdsByAttemptId: Map<string, Set<string>>;
+  aiSuggestionsById: Map<string, AiEssayGradingSuggestionRecord>;
+  aiSuggestionIdsByAnswerId: Map<string, Set<string>>;
   questionIdsByExamId: Map<string, Set<string>>;
   questionIdByExamAndOrder: Map<string, string>;
 };
@@ -62,6 +70,8 @@ const mockExamStore: ExamStore = {
   attemptAnswersById: new Map<string, ClassExamAttemptAnswerRecord>(),
   attemptAnswerIdByAttemptAndQuestion: new Map<string, string>(),
   attemptAnswerIdsByAttemptId: new Map<string, Set<string>>(),
+  aiSuggestionsById: new Map<string, AiEssayGradingSuggestionRecord>(),
+  aiSuggestionIdsByAnswerId: new Map<string, Set<string>>(),
   questionIdsByExamId: new Map<string, Set<string>>(),
   questionIdByExamAndOrder: new Map<string, string>(),
 };
@@ -94,6 +104,16 @@ function layDanhSachAnswerIdTheoAttempt(attemptId: string): Set<string> {
   }
 
   return answerIds;
+}
+
+function layDanhSachSuggestionIdTheoAnswer(answerId: string): Set<string> {
+  let suggestionIds = mockExamStore.aiSuggestionIdsByAnswerId.get(answerId);
+  if (!suggestionIds) {
+    suggestionIds = new Set<string>();
+    mockExamStore.aiSuggestionIdsByAnswerId.set(answerId, suggestionIds);
+  }
+
+  return suggestionIds;
 }
 
 function batBuocExamTonTai(classExamId: string): ClassExamRecord {
@@ -179,6 +199,64 @@ function batBuocQuestionEssay(questionId: string): ClassExamQuestionRecord {
 
 function batBuocQuyenChamTayEssay(question: ClassExamQuestionRecord, actorUserId: string): void {
   batBuocQuyenSuaNoiDungExam(question.classExamId, actorUserId);
+}
+
+function batBuocGoiYChamAITonTai(suggestionId: string): AiEssayGradingSuggestionRecord {
+  const suggestion = mockExamStore.aiSuggestionsById.get(suggestionId);
+  if (!suggestion) {
+    throw new AuthError({
+      code: "AI_GRADING_SUGGESTION_NOT_FOUND",
+      message: "Khong tim thay goi y cham AI theo suggestionId.",
+      statusCode: 404,
+    });
+  }
+
+  return suggestion;
+}
+
+function taoBanGhiGoiYChamAI(
+  suggestion: AiEssayGradingSuggestionRecord,
+  answer: ClassExamAttemptAnswerRecord,
+  question: ClassExamQuestionRecord,
+  attempt: ClassExamAttemptRecord,
+  student: {
+    userId: string;
+    email: string | null;
+    displayName: string | null;
+  },
+): AiEssayGradingSuggestionItemRecord {
+  return {
+    suggestion: saoChep(suggestion),
+    answer: saoChep(answer),
+    question: saoChep(question),
+    attempt: saoChep(attempt),
+    student: saoChep(student),
+  };
+}
+
+function supersedePendingAiSuggestionsNoCheck(
+  answerId: string,
+  updatedAt: string,
+  excludeSuggestionId?: string,
+): AiEssayGradingSuggestionRecord[] {
+  const updatedSuggestions: AiEssayGradingSuggestionRecord[] = [];
+
+  for (const suggestionId of layDanhSachSuggestionIdTheoAnswer(answerId)) {
+    const current = mockExamStore.aiSuggestionsById.get(suggestionId);
+    if (!current || current.status !== "pending" || current.id === excludeSuggestionId) {
+      continue;
+    }
+
+    const nextSuggestion: AiEssayGradingSuggestionRecord = {
+      ...current,
+      status: "superseded",
+      updatedAt,
+    };
+    mockExamStore.aiSuggestionsById.set(nextSuggestion.id, nextSuggestion);
+    updatedSuggestions.push(saoChep(nextSuggestion));
+  }
+
+  return updatedSuggestions;
 }
 
 function tinhTongKetAttemptSauChamTay(attemptId: string): {
@@ -928,6 +1006,7 @@ function taoMockExamRepository(): ExamRepository {
         updatedAt: input.gradedAt,
       };
       mockExamStore.attemptAnswersById.set(updatedAnswer.id, updatedAnswer);
+      supersedePendingAiSuggestionsNoCheck(updatedAnswer.id, input.gradedAt);
 
       const tongKet = tinhTongKetAttemptSauChamTay(attempt.id);
       const updatedAttempt: ClassExamAttemptRecord = {
@@ -943,6 +1022,224 @@ function taoMockExamRepository(): ExamRepository {
         question: saoChep(question),
         attempt: saoChep(updatedAttempt),
       };
+    },
+
+    async createAiEssaySuggestion(
+      input: CreateAiEssaySuggestionInput,
+    ): Promise<AiEssayGradingSuggestionItemRecord> {
+      const answer = mockExamStore.attemptAnswersById.get(input.answerId);
+      if (!answer) {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+          message: "Khong tim thay cau tra loi can tao goi y cham AI.",
+          statusCode: 404,
+        });
+      }
+
+      const question = batBuocQuestionEssay(answer.questionId);
+      batBuocQuyenChamTayEssay(question, input.actorUserId);
+
+      const attempt = batBuocAttemptTonTai(answer.attemptId);
+      if (attempt.status !== "submitted") {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_NOT_SUBMITTED",
+          message: "Chi duoc tao goi y AI sau khi hoc sinh da nop bai.",
+          statusCode: 409,
+        });
+      }
+      if (!coCauTraLoiTextHopLe(answer)) {
+        throw new AuthError({
+          code: "ESSAY_ANSWER_EMPTY",
+          message: "Khong the tao goi y AI khi cau tu luan chua co noi dung tra loi.",
+          statusCode: 400,
+        });
+      }
+      if (input.suggestedPoints < 0 || input.suggestedPoints > question.points) {
+        throw new AuthError({
+          code: "AI_SUGGESTED_POINTS_OUT_OF_RANGE",
+          message: "Diem goi y AI phai nam trong khoang 0 den diem toi da cua cau hoi.",
+          statusCode: 400,
+        });
+      }
+      if (
+        input.confidenceScore !== null &&
+        (input.confidenceScore < 0 || input.confidenceScore > 1)
+      ) {
+        throw new AuthError({
+          code: "INVALID_INPUT",
+          message: "confidenceScore phai nam trong khoang 0 den 1 neu duoc cung cap.",
+          statusCode: 400,
+        });
+      }
+
+      supersedePendingAiSuggestionsNoCheck(answer.id, input.generatedAt);
+
+      const suggestion: AiEssayGradingSuggestionRecord = {
+        id: randomUUID(),
+        answerId: answer.id,
+        suggestedPoints: lamTronDiemNen(input.suggestedPoints),
+        suggestedFeedback: input.suggestedFeedback,
+        confidenceScore:
+          input.confidenceScore === null ? null : lamTronDiemNen(input.confidenceScore),
+        providerKind: input.providerKind,
+        modelName: input.modelName,
+        promptVersion: input.promptVersion,
+        status: "pending",
+        responseJson: saoChep(input.responseJson),
+        generatedAt: input.generatedAt,
+        reviewedBy: null,
+        reviewedAt: null,
+        createdAt: input.generatedAt,
+        updatedAt: input.generatedAt,
+      };
+      mockExamStore.aiSuggestionsById.set(suggestion.id, suggestion);
+      layDanhSachSuggestionIdTheoAnswer(answer.id).add(suggestion.id);
+
+      const student = await taoThongTinHocSinh(attempt.userId);
+      return taoBanGhiGoiYChamAI(suggestion, answer, question, attempt, student);
+    },
+
+    async listAiEssaySuggestions(
+      input: ListAiEssaySuggestionsInput,
+    ): Promise<AiEssayGradingSuggestionItemRecord[]> {
+      const examId = mockExamStore.examIdByExamCode.get(keyExamCode(input.examCode));
+      if (!examId) {
+        throw new AuthError({
+          code: "EXAM_NOT_FOUND",
+          message: "Khong tim thay bai kiem tra theo ma da nhap.",
+          statusCode: 404,
+        });
+      }
+
+      batBuocQuyenSuaNoiDungExam(examId, input.actorUserId);
+
+      const items: AiEssayGradingSuggestionItemRecord[] = [];
+      for (const suggestion of mockExamStore.aiSuggestionsById.values()) {
+        if (input.answerId && suggestion.answerId !== input.answerId) {
+          continue;
+        }
+
+        const answer = mockExamStore.attemptAnswersById.get(suggestion.answerId);
+        if (!answer) {
+          continue;
+        }
+        const question = mockExamStore.questionsById.get(answer.questionId);
+        const attempt = mockExamStore.attemptsById.get(answer.attemptId);
+        if (!question || !attempt || question.classExamId !== examId) {
+          continue;
+        }
+
+        const student = await taoThongTinHocSinh(attempt.userId);
+        items.push(taoBanGhiGoiYChamAI(suggestion, answer, question, attempt, student));
+      }
+
+      return items.sort((left, right) => {
+        if (left.suggestion.generatedAt === right.suggestion.generatedAt) {
+          return right.suggestion.createdAt.localeCompare(left.suggestion.createdAt);
+        }
+        return right.suggestion.generatedAt.localeCompare(left.suggestion.generatedAt);
+      });
+    },
+
+    async reviewAiEssaySuggestion(
+      input: ReviewAiEssaySuggestionInput,
+    ): Promise<ReviewAiEssaySuggestionResult> {
+      const currentSuggestion = batBuocGoiYChamAITonTai(input.suggestionId);
+      const answer = mockExamStore.attemptAnswersById.get(currentSuggestion.answerId);
+      if (!answer) {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+          message: "Khong tim thay cau tra loi gan voi goi y AI.",
+          statusCode: 404,
+        });
+      }
+
+      const question = batBuocQuestionEssay(answer.questionId);
+      batBuocQuyenChamTayEssay(question, input.actorUserId);
+
+      const attempt = batBuocAttemptTonTai(answer.attemptId);
+      if (attempt.status !== "submitted") {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_NOT_SUBMITTED",
+          message: "Chi duoc xu ly goi y AI sau khi hoc sinh da nop bai.",
+          statusCode: 409,
+        });
+      }
+      if (currentSuggestion.status !== "pending") {
+        throw new AuthError({
+          code: "AI_GRADING_SUGGESTION_ALREADY_REVIEWED",
+          message: "Goi y cham AI nay da duoc xu ly truoc do.",
+          statusCode: 409,
+        });
+      }
+
+      const reviewedSuggestion: AiEssayGradingSuggestionRecord = {
+        ...currentSuggestion,
+        status: input.action === "accept" ? "accepted" : "rejected",
+        reviewedBy: input.actorUserId,
+        reviewedAt: input.reviewedAt,
+        updatedAt: input.reviewedAt,
+      };
+      mockExamStore.aiSuggestionsById.set(reviewedSuggestion.id, reviewedSuggestion);
+
+      if (input.action === "reject") {
+        return {
+          suggestion: saoChep(reviewedSuggestion),
+          answer: saoChep(answer),
+          question: saoChep(question),
+          attempt: saoChep(attempt),
+        };
+      }
+
+      supersedePendingAiSuggestionsNoCheck(answer.id, input.reviewedAt, reviewedSuggestion.id);
+
+      const updatedAnswer: ClassExamAttemptAnswerRecord = {
+        ...answer,
+        awardedPoints: lamTronDiemNen(reviewedSuggestion.suggestedPoints),
+        manualAwardedPoints: lamTronDiemNen(reviewedSuggestion.suggestedPoints),
+        gradingNote: reviewedSuggestion.suggestedFeedback,
+        gradedBy: input.actorUserId,
+        gradedAt: input.reviewedAt,
+        scoredAt: input.reviewedAt,
+        updatedAt: input.reviewedAt,
+      };
+      mockExamStore.attemptAnswersById.set(updatedAnswer.id, updatedAnswer);
+
+      const tongKet = tinhTongKetAttemptSauChamTay(attempt.id);
+      const updatedAttempt: ClassExamAttemptRecord = {
+        ...attempt,
+        finalScore: tongKet.finalScore,
+        pendingManualGradingCount: tongKet.pendingManualGradingCount,
+        updatedAt: input.reviewedAt,
+      };
+      mockExamStore.attemptsById.set(updatedAttempt.id, updatedAttempt);
+
+      return {
+        suggestion: saoChep(reviewedSuggestion),
+        answer: saoChep(updatedAnswer),
+        question: saoChep(question),
+        attempt: saoChep(updatedAttempt),
+      };
+    },
+
+    async supersedePendingAiSuggestionsForAnswer(
+      answerId: string,
+      actorUserId: string,
+      updatedAt: string,
+    ): Promise<AiEssayGradingSuggestionRecord[]> {
+      const answer = mockExamStore.attemptAnswersById.get(answerId);
+      if (!answer) {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+          message: "Khong tim thay cau tra loi can dong trang thai goi y AI.",
+          statusCode: 404,
+        });
+      }
+
+      const question = batBuocQuestionEssay(answer.questionId);
+      batBuocQuyenChamTayEssay(question, actorUserId);
+
+      return supersedePendingAiSuggestionsNoCheck(answerId, updatedAt);
     },
   };
 }
@@ -960,6 +1257,8 @@ export function datLaiKhoBaiKiemTraGiaLap(): void {
   mockExamStore.attemptAnswersById.clear();
   mockExamStore.attemptAnswerIdByAttemptAndQuestion.clear();
   mockExamStore.attemptAnswerIdsByAttemptId.clear();
+  mockExamStore.aiSuggestionsById.clear();
+  mockExamStore.aiSuggestionIdsByAnswerId.clear();
   mockExamStore.questionIdsByExamId.clear();
   mockExamStore.questionIdByExamAndOrder.clear();
 }

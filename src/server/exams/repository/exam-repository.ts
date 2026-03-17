@@ -1,4 +1,6 @@
 import type {
+  AiEssayGradingSuggestionItemRecord,
+  AiEssayGradingSuggestionRecord,
   EssayManualGradingQueueItemRecord,
   GradeEssayAttemptAnswerResult,
   ClassExamAttemptAnswerItemRecord,
@@ -9,6 +11,7 @@ import type {
   ClassExamRecord,
   ClassExamStatus,
   MyCreatedClassExamItem,
+  ReviewAiEssaySuggestionResult,
   StartClassExamResult,
   StudentExamPlayerRecord,
   SubmitClassExamAttemptResult,
@@ -103,6 +106,32 @@ export type GradeEssayAttemptAnswerInput = {
   gradedAt: string;
 };
 
+export type CreateAiEssaySuggestionInput = {
+  answerId: string;
+  actorUserId: string;
+  suggestedPoints: number;
+  suggestedFeedback: string | null;
+  confidenceScore: number | null;
+  providerKind: string;
+  modelName: string;
+  promptVersion: string | null;
+  responseJson: Record<string, unknown>;
+  generatedAt: string;
+};
+
+export type ListAiEssaySuggestionsInput = {
+  examCode: string;
+  actorUserId: string;
+  answerId?: string | null;
+};
+
+export type ReviewAiEssaySuggestionInput = {
+  suggestionId: string;
+  actorUserId: string;
+  action: "accept" | "reject";
+  reviewedAt: string;
+};
+
 export interface ExamRepository {
   createClassExamByTeacher(input: CreateClassExamInput): Promise<ClassExamRecord>;
   listMyCreatedClassExams(userId: string): Promise<MyCreatedClassExamItem[]>;
@@ -124,4 +153,12 @@ export interface ExamRepository {
     input: ListEssayAnswersForManualGradingInput,
   ): Promise<EssayManualGradingQueueItemRecord[]>;
   gradeEssayAttemptAnswer(input: GradeEssayAttemptAnswerInput): Promise<GradeEssayAttemptAnswerResult>;
+  createAiEssaySuggestion(input: CreateAiEssaySuggestionInput): Promise<AiEssayGradingSuggestionItemRecord>;
+  listAiEssaySuggestions(input: ListAiEssaySuggestionsInput): Promise<AiEssayGradingSuggestionItemRecord[]>;
+  reviewAiEssaySuggestion(input: ReviewAiEssaySuggestionInput): Promise<ReviewAiEssaySuggestionResult>;
+  supersedePendingAiSuggestionsForAnswer(
+    answerId: string,
+    actorUserId: string,
+    updatedAt: string,
+  ): Promise<AiEssayGradingSuggestionRecord[]>;
 }
