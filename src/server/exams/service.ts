@@ -4,12 +4,18 @@ import {
   batBuocQuyenTaoLop,
 } from "@/server/auth/permissions";
 import { layPhienDangNhap } from "@/server/auth/service";
-import { layAiEssayGradingProvider } from "@/server/exams/ai-grading-provider";
+import {
+  AiGradingProviderCallError,
+  type GenerateAiEssaySuggestionOutput,
+  layAiEssayGradingProvider,
+} from "@/server/exams/ai-grading-provider";
 import { layExamRepository } from "@/server/exams/repository";
 import type {
   AnswerKeyPayload,
   CreateClassExamInput,
   CreateExamQuestionInput,
+  CreateAiGradingUsageLogInput,
+  ExamRepository,
   GradeEssayAttemptAnswerInput,
   GetStudentExamPlayerInput,
   ListEssayAnswersForManualGradingInput,
@@ -316,6 +322,33 @@ function taoMaNgauNhien(length: number): string {
 
 function taoMaBaiKiemTra(): string {
   return `EX${taoMaNgauNhien(8)}`;
+}
+
+function taoMetadataUsageThanhCong(
+  suggestion: GenerateAiEssaySuggestionOutput,
+): Record<string, unknown> {
+  return {
+    responseId: suggestion.responseId,
+    usage: suggestion.usageJson,
+    providerResponse: suggestion.responseJson,
+  };
+}
+
+function taoMetadataUsageThatBai(error: AiGradingProviderCallError): Record<string, unknown> {
+  return {
+    ...error.metadataJson,
+  };
+}
+
+async function ghiUsageLogAIBestEffort(
+  repository: ExamRepository,
+  input: CreateAiGradingUsageLogInput,
+): Promise<void> {
+  try {
+    await repository.createAiGradingUsageLog(input);
+  } catch (error) {
+    console.error("[exam-ai-usage-log] Khong ghi duoc usage log AI.", error);
+  }
 }
 
 function docMetadataTheoLoaiCauHoi(
@@ -993,24 +1026,80 @@ export async function taoGoiYChamAIChoEssay(
   }
 
   const provider = layAiEssayGradingProvider();
-  const suggestion = await provider.generateEssaySuggestion({
-    answer: target.answer,
-    question: target.question,
-    attempt: target.attempt,
-  });
+  const requestedAt = new Date().toISOString();
+  let providerSuggestion: GenerateAiEssaySuggestionOutput | null = null;
 
-  return repository.createAiEssaySuggestion({
-    answerId: target.answer.id,
-    actorUserId: verifiedSession.user.id,
-    suggestedPoints: suggestion.suggestedPoints,
-    suggestedFeedback: suggestion.suggestedFeedback,
-    confidenceScore: suggestion.confidenceScore,
-    providerKind: suggestion.providerKind,
-    modelName: suggestion.modelName,
-    promptVersion: suggestion.promptVersion,
-    responseJson: suggestion.responseJson,
-    generatedAt: new Date().toISOString(),
-  });
+  try {
+    providerSuggestion = await provider.generateEssaySuggestion({
+      answer: target.answer,
+      question: target.question,
+      attempt: target.attempt,
+    });
+
+    const created = await repository.createAiEssaySuggestion({
+      answerId: target.answer.id,
+      actorUserId: verifiedSession.user.id,
+      suggestedPoints: providerSuggestion.suggestedPoints,
+      suggestedFeedback: providerSuggestion.suggestedFeedback,
+      confidenceScore: providerSuggestion.confidenceScore,
+      providerKind: providerSuggestion.providerKind,
+      modelName: providerSuggestion.modelName,
+      promptVersion: providerSuggestion.promptVersion,
+      responseJson: providerSuggestion.responseJson,
+      generatedAt: requestedAt,
+    });
+
+    await ghiUsageLogAIBestEffort(repository, {
+      answerId: target.answer.id,
+      suggestionId: created.suggestion.id,
+      actorUserId: verifiedSession.user.id,
+      providerKind: providerSuggestion.providerKind,
+      modelName: providerSuggestion.modelName,
+      promptVersion: providerSuggestion.promptVersion,
+      requestStatus: "succeeded",
+      errorCode: null,
+      latencyMs: providerSuggestion.latencyMs,
+      metadataJson: taoMetadataUsageThanhCong(providerSuggestion),
+      createdAt: requestedAt,
+    });
+
+    return created;
+  } catch (error) {
+    if (error instanceof AiGradingProviderCallError) {
+      await ghiUsageLogAIBestEffort(repository, {
+        answerId: target.answer.id,
+        suggestionId: null,
+        actorUserId: verifiedSession.user.id,
+        providerKind: error.providerKind,
+        modelName: error.modelName,
+        promptVersion: error.promptVersion,
+        requestStatus: error.requestStatus,
+        errorCode: error.code,
+        latencyMs: error.latencyMs,
+        metadataJson: taoMetadataUsageThatBai(error),
+        createdAt: requestedAt,
+      });
+    } else if (providerSuggestion) {
+      await ghiUsageLogAIBestEffort(repository, {
+        answerId: target.answer.id,
+        suggestionId: null,
+        actorUserId: verifiedSession.user.id,
+        providerKind: providerSuggestion.providerKind,
+        modelName: providerSuggestion.modelName,
+        promptVersion: providerSuggestion.promptVersion,
+        requestStatus: "succeeded",
+        errorCode: null,
+        latencyMs: providerSuggestion.latencyMs,
+        metadataJson: {
+          ...taoMetadataUsageThanhCong(providerSuggestion),
+          persistenceErrorCode: error instanceof AuthError ? error.code : "UNKNOWN_PERSISTENCE_ERROR",
+        },
+        createdAt: requestedAt,
+      });
+    }
+
+    throw error;
+  }
 }
 
 export async function lietKeGoiYChamAIChoTeacher(

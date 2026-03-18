@@ -58,6 +58,12 @@ const aiAssistedGradingMigrationFile = join(
   "migrations",
   "2026-03-17_11-10-00--essay-ai-grading-suggestions-foundation.sql",
 );
+const aiUsageLogsMigrationFile = join(
+  process.cwd(),
+  "db",
+  "migrations",
+  "2026-03-17_14-10-00--ai-grading-usage-logs.sql",
+);
 const policyFile = join(process.cwd(), "db", "policies", "2026-03-14_00-30-00--auth-foundation-rls.sql");
 const classPolicyFile = join(
   process.cwd(),
@@ -95,6 +101,12 @@ const aiAssistedGradingPolicyFile = join(
   "policies",
   "2026-03-17_11-20-00--essay-ai-grading-suggestions-foundation-rls.sql",
 );
+const aiUsageLogsPolicyFile = join(
+  process.cwd(),
+  "db",
+  "policies",
+  "2026-03-17_14-20-00--ai-grading-usage-logs-rls.sql",
+);
 
 const migrationSql = readFileSync(migrationFile, "utf8");
 const sessionHardeningMigrationSql = readFileSync(sessionHardeningMigrationFile, "utf8");
@@ -106,6 +118,7 @@ const examQuestionsFoundationMigrationSql = readFileSync(examQuestionsFoundation
 const examAttemptAnswersMigrationSql = readFileSync(examAttemptAnswersMigrationFile, "utf8");
 const manualGradingMigrationSql = readFileSync(manualGradingMigrationFile, "utf8");
 const aiAssistedGradingMigrationSql = readFileSync(aiAssistedGradingMigrationFile, "utf8");
+const aiUsageLogsMigrationSql = readFileSync(aiUsageLogsMigrationFile, "utf8");
 const policySql = readFileSync(policyFile, "utf8");
 const classPolicySql = readFileSync(classPolicyFile, "utf8");
 const classExamsPolicySql = readFileSync(classExamsPolicyFile, "utf8");
@@ -113,6 +126,7 @@ const examQuestionsPolicySql = readFileSync(examQuestionsPolicyFile, "utf8");
 const examAttemptAnswersPolicySql = readFileSync(examAttemptAnswersPolicyFile, "utf8");
 const manualGradingPolicySql = readFileSync(manualGradingPolicyFile, "utf8");
 const aiAssistedGradingPolicySql = readFileSync(aiAssistedGradingPolicyFile, "utf8");
+const aiUsageLogsPolicySql = readFileSync(aiUsageLogsPolicyFile, "utf8");
 
 test("migration phai co cac bang auth nen tang", () => {
   assert.match(migrationSql, /create table if not exists public\.user_accounts/i);
@@ -227,6 +241,13 @@ test("migration AI-assisted grading phai co bang goi y va trigger guard essay", 
   );
 });
 
+test("migration AI provider usage phai co bang log append-only", () => {
+  assert.match(aiUsageLogsMigrationSql, /create table if not exists public\.ai_grading_usage_logs/i);
+  assert.match(aiUsageLogsMigrationSql, /request_status in \('succeeded', 'failed', 'timeout'\)/i);
+  assert.match(aiUsageLogsMigrationSql, /latency_ms is null or latency_ms >= 0/i);
+  assert.match(aiUsageLogsMigrationSql, /jsonb_typeof\(metadata_json\) = 'object'/i);
+});
+
 test("migration admin review phai ghi actor audit tu reviewed_by khi auth.uid null", () => {
   assert.match(adminReviewMigrationSql, /coalesce\(auth\.uid\(\), new\.reviewed_by, old\.reviewed_by, new\.user_id\)/i);
 });
@@ -328,4 +349,11 @@ test("policy AI-assisted grading phai khoa suggestion theo owner exam hoac admin
   assert.match(aiAssistedGradingPolicySql, /p_ai_grading_suggestions_update_owner_or_admin/i);
   assert.match(aiAssistedGradingPolicySql, /app_is_exam_owner_by_ai_suggestion/i);
   assert.match(aiAssistedGradingPolicySql, /app_is_exam_owner_by_attempt_answer/i);
+});
+
+test("policy usage log phai khoa owner exam hoac admin", () => {
+  assert.match(aiUsageLogsPolicySql, /alter table public\.ai_grading_usage_logs enable row level security/i);
+  assert.match(aiUsageLogsPolicySql, /p_ai_grading_usage_logs_select_owner_or_admin/i);
+  assert.match(aiUsageLogsPolicySql, /p_ai_grading_usage_logs_insert_owner_or_admin/i);
+  assert.match(aiUsageLogsPolicySql, /app_is_exam_owner_by_attempt_answer/i);
 });

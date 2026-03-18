@@ -4,6 +4,7 @@ import { AuthError } from "@/server/auth/errors";
 import { layAuthRepository } from "@/server/auth/repository";
 import { datLaiKhoAuthGiaLap } from "@/server/auth/repository/mock-auth-repository";
 import { chuanHoaDangKyPayload, dangKyTaiKhoan, dangNhapTaiKhoan } from "@/server/auth/service";
+import { datAiEssayGradingProviderChoTest } from "@/server/exams/ai-grading-provider";
 import { datLaiKhoLopHocGiaLap } from "@/server/classes/repository/mock-classroom-repository";
 import { taoLopHocBoiGiaoVien, thamGiaLopHocBangMa, type TaoLopHocPayload } from "@/server/classes/service";
 import { datLaiKhoBaiKiemTraGiaLap } from "@/server/exams/repository/mock-exam-repository";
@@ -25,6 +26,10 @@ import {
 
 process.env.AUTH_ADAPTER_MODE = "mock";
 process.env.AI_GRADING_PROVIDER_MODE = "mock";
+
+test.afterEach(() => {
+  datAiEssayGradingProviderChoTest(null);
+});
 
 type TaiKhoanTest = {
   id: string;

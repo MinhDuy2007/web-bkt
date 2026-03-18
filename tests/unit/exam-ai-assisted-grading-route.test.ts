@@ -5,6 +5,10 @@ import { PATCH as patchAiSuggestion } from "@/app/api/exams/ai-grading/suggestio
 import { layAuthRepository } from "@/server/auth/repository";
 import { datLaiKhoAuthGiaLap } from "@/server/auth/repository/mock-auth-repository";
 import { chuanHoaDangKyPayload, dangKyTaiKhoan, dangNhapTaiKhoan } from "@/server/auth/service";
+import {
+  AiGradingProviderCallError,
+  datAiEssayGradingProviderChoTest,
+} from "@/server/exams/ai-grading-provider";
 import { datLaiKhoLopHocGiaLap } from "@/server/classes/repository/mock-classroom-repository";
 import { taoLopHocBoiGiaoVien, thamGiaLopHocBangMa, type TaoLopHocPayload } from "@/server/classes/service";
 import { datLaiKhoBaiKiemTraGiaLap } from "@/server/exams/repository/mock-exam-repository";
@@ -20,6 +24,10 @@ import {
 
 process.env.AUTH_ADAPTER_MODE = "mock";
 process.env.AI_GRADING_PROVIDER_MODE = "mock";
+
+test.afterEach(() => {
+  datAiEssayGradingProviderChoTest(null);
+});
 
 type TaiKhoanTest = {
   id: string;
@@ -273,4 +281,49 @@ test("route PATCH accept AI suggestion cap nhat attempt summary", async () => {
   assert.equal(acceptBody.data.suggestion.status, "accepted");
   assert.equal(acceptBody.data.attempt.pendingManualGradingCount, 0);
   assert.equal(typeof acceptBody.data.attempt.finalScore, "number");
+});
+
+test("route POST tra loi 504 khi provider AI timeout", async () => {
+  const setup = await taoFixtureRoute();
+  datAiEssayGradingProviderChoTest({
+    async generateEssaySuggestion() {
+      throw new AiGradingProviderCallError({
+        code: "AI_PROVIDER_TIMEOUT",
+        message: "Provider AI vuot timeout.",
+        statusCode: 504,
+        providerKind: "openai",
+        modelName: "gpt-4o-mini",
+        promptVersion: "essay-openai-v1",
+        requestStatus: "timeout",
+        latencyMs: 2000,
+      });
+    },
+  });
+
+  const response = await postAiSuggestion(
+    new Request("http://localhost:3000/api/exams/ai-grading/suggestions", {
+      method: "POST",
+      headers: {
+        cookie: setup.teacherCookie,
+        origin: "http://localhost:3000",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        examCode: setup.exam.examCode,
+        answerId: setup.essayAnswer.answer.id,
+      }),
+    }),
+  );
+  const body = (await response.json()) as {
+    ok: false;
+    error: {
+      code: string;
+      message: string;
+    };
+  };
+
+  assert.equal(response.status, 504);
+  assert.equal(body.ok, false);
+  assert.equal(body.error.code, "AI_PROVIDER_TIMEOUT");
+
 });

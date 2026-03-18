@@ -1,6 +1,7 @@
 import type {
   AiEssayGradingSuggestionItemRecord,
   AiEssayGradingSuggestionRecord,
+  AiGradingUsageLogRecord,
   EssayManualGradingQueueItemRecord,
   GradeEssayAttemptAnswerResult,
   ClassExamAttemptAnswerItemRecord,
@@ -132,6 +133,20 @@ export type ReviewAiEssaySuggestionInput = {
   reviewedAt: string;
 };
 
+export type CreateAiGradingUsageLogInput = {
+  answerId: string;
+  suggestionId: string | null;
+  actorUserId: string | null;
+  providerKind: string;
+  modelName: string;
+  promptVersion: string | null;
+  requestStatus: "succeeded" | "failed" | "timeout";
+  errorCode: string | null;
+  latencyMs: number | null;
+  metadataJson: Record<string, unknown>;
+  createdAt: string;
+};
+
 export interface ExamRepository {
   createClassExamByTeacher(input: CreateClassExamInput): Promise<ClassExamRecord>;
   listMyCreatedClassExams(userId: string): Promise<MyCreatedClassExamItem[]>;
@@ -161,4 +176,5 @@ export interface ExamRepository {
     actorUserId: string,
     updatedAt: string,
   ): Promise<AiEssayGradingSuggestionRecord[]>;
+  createAiGradingUsageLog(input: CreateAiGradingUsageLogInput): Promise<AiGradingUsageLogRecord>;
 }

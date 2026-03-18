@@ -1,0 +1,37 @@
+﻿[THOI GIAN TEST]
+2026-03-17 18:00:22
+
+[MUC TIEU TEST]
+Kiem tra task 14: adapter provider that theo huong server-side only, usage log toi thieu, va guard timeout/failure tren dev/test.
+
+[LENH DA CHAY]
+1) npm run db:prepare-migrations
+2) npm run db:push:dry
+3) npm run db:push
+4) npm run lint
+5) npm run typecheck
+6) npm run test
+7) npm run test:task14:runtime
+
+[KET QUA TOM TAT]
+- db prepare exit code: 0
+- db push dry exit code: 0
+- db push exit code: 0
+- lint exit code: 0
+- typecheck exit code: 0
+- test exit code: 0
+- runtime proof exit code: 0
+
+[FILE LOG]
+- db-prepare.log
+- db-push-dry.log
+- db-push.log
+- lint.log
+- typecheck.log
+- test.log
+- runtime-proof.log
+
+[GHI CHU]
+- Runtime proof dung adapter OpenAI-compatible server-side path va usage log tren DB that.
+- Neu env khong co OPENAI_API_KEY that, script proof van di qua duong adapter openai bang mock endpoint cuc bo co kiem soat.
+- Teacher van phai accept suggestion thi final_score moi doi.

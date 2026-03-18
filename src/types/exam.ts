@@ -23,6 +23,9 @@ export const AI_GRADING_SUGGESTION_STATUSES = [
 ] as const;
 export type AiGradingSuggestionStatus = (typeof AI_GRADING_SUGGESTION_STATUSES)[number];
 
+export const AI_GRADING_USAGE_LOG_STATUSES = ["succeeded", "failed", "timeout"] as const;
+export type AiGradingUsageLogStatus = (typeof AI_GRADING_USAGE_LOG_STATUSES)[number];
+
 export type ClassExamRecord = {
   id: string;
   examCode: string;
@@ -201,6 +204,21 @@ export type ReviewAiEssaySuggestionResult = {
   answer: ClassExamAttemptAnswerRecord;
   question: ClassExamQuestionRecord;
   attempt: ClassExamAttemptRecord;
+};
+
+export type AiGradingUsageLogRecord = {
+  id: string;
+  answerId: string;
+  suggestionId: string | null;
+  actorUserId: string | null;
+  providerKind: string;
+  modelName: string;
+  promptVersion: string | null;
+  requestStatus: AiGradingUsageLogStatus;
+  errorCode: string | null;
+  latencyMs: number | null;
+  metadataJson: Record<string, unknown>;
+  createdAt: string;
 };
 
 export type SubmitClassExamAttemptResult = {

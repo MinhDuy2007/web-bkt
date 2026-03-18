@@ -8,6 +8,7 @@ import {
 import { chamDiemNenChoCauHoi, lamTronDiemNen } from "@/server/exams/scoring";
 import type {
   CreateAiEssaySuggestionInput,
+  CreateAiGradingUsageLogInput,
   CreateClassExamInput,
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
@@ -26,6 +27,7 @@ import type {
 import type {
   AiEssayGradingSuggestionItemRecord,
   AiEssayGradingSuggestionRecord,
+  AiGradingUsageLogRecord,
   ClassExamAttemptAnswerItemRecord,
   ClassExamAttemptAnswerRecord,
   ClassExamAnswerKeyRecord,
@@ -55,6 +57,8 @@ type ExamStore = {
   attemptAnswerIdsByAttemptId: Map<string, Set<string>>;
   aiSuggestionsById: Map<string, AiEssayGradingSuggestionRecord>;
   aiSuggestionIdsByAnswerId: Map<string, Set<string>>;
+  aiUsageLogsById: Map<string, AiGradingUsageLogRecord>;
+  aiUsageLogIdsByAnswerId: Map<string, Set<string>>;
   questionIdsByExamId: Map<string, Set<string>>;
   questionIdByExamAndOrder: Map<string, string>;
 };
@@ -72,6 +76,8 @@ const mockExamStore: ExamStore = {
   attemptAnswerIdsByAttemptId: new Map<string, Set<string>>(),
   aiSuggestionsById: new Map<string, AiEssayGradingSuggestionRecord>(),
   aiSuggestionIdsByAnswerId: new Map<string, Set<string>>(),
+  aiUsageLogsById: new Map<string, AiGradingUsageLogRecord>(),
+  aiUsageLogIdsByAnswerId: new Map<string, Set<string>>(),
   questionIdsByExamId: new Map<string, Set<string>>(),
   questionIdByExamAndOrder: new Map<string, string>(),
 };
@@ -114,6 +120,16 @@ function layDanhSachSuggestionIdTheoAnswer(answerId: string): Set<string> {
   }
 
   return suggestionIds;
+}
+
+function layDanhSachUsageLogIdTheoAnswer(answerId: string): Set<string> {
+  let logIds = mockExamStore.aiUsageLogIdsByAnswerId.get(answerId);
+  if (!logIds) {
+    logIds = new Set<string>();
+    mockExamStore.aiUsageLogIdsByAnswerId.set(answerId, logIds);
+  }
+
+  return logIds;
 }
 
 function batBuocExamTonTai(classExamId: string): ClassExamRecord {
@@ -1241,6 +1257,44 @@ function taoMockExamRepository(): ExamRepository {
 
       return supersedePendingAiSuggestionsNoCheck(answerId, updatedAt);
     },
+
+    async createAiGradingUsageLog(
+      input: CreateAiGradingUsageLogInput,
+    ): Promise<AiGradingUsageLogRecord> {
+      const answer = mockExamStore.attemptAnswersById.get(input.answerId);
+      if (!answer) {
+        throw new AuthError({
+          code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+          message: "Khong tim thay cau tra loi essay de ghi usage log AI.",
+          statusCode: 404,
+        });
+      }
+
+      if (input.actorUserId) {
+        const question = batBuocQuestionEssay(answer.questionId);
+        batBuocQuyenChamTayEssay(question, input.actorUserId);
+      }
+
+      const record: AiGradingUsageLogRecord = {
+        id: randomUUID(),
+        answerId: input.answerId,
+        suggestionId: input.suggestionId,
+        actorUserId: input.actorUserId,
+        providerKind: input.providerKind,
+        modelName: input.modelName,
+        promptVersion: input.promptVersion,
+        requestStatus: input.requestStatus,
+        errorCode: input.errorCode,
+        latencyMs: input.latencyMs,
+        metadataJson: saoChep(input.metadataJson),
+        createdAt: input.createdAt,
+      };
+
+      mockExamStore.aiUsageLogsById.set(record.id, record);
+      layDanhSachUsageLogIdTheoAnswer(record.answerId).add(record.id);
+
+      return saoChep(record);
+    },
   };
 }
 
@@ -1259,8 +1313,11 @@ export function datLaiKhoBaiKiemTraGiaLap(): void {
   mockExamStore.attemptAnswerIdsByAttemptId.clear();
   mockExamStore.aiSuggestionsById.clear();
   mockExamStore.aiSuggestionIdsByAnswerId.clear();
+  mockExamStore.aiUsageLogsById.clear();
+  mockExamStore.aiUsageLogIdsByAnswerId.clear();
   mockExamStore.questionIdsByExamId.clear();
   mockExamStore.questionIdByExamAndOrder.clear();
+  cachedMockExamRepository = null;
 }
 
 export function layMockExamRepository(): ExamRepository {
@@ -1269,4 +1326,10 @@ export function layMockExamRepository(): ExamRepository {
   }
 
   return cachedMockExamRepository;
+}
+
+export function docAiGradingUsageLogsGiaLap(): AiGradingUsageLogRecord[] {
+  return [...mockExamStore.aiUsageLogsById.values()]
+    .map((item) => saoChep(item))
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
 }

@@ -11,8 +11,12 @@ export type ServerEnv = {
   supabaseServiceRoleKey: string | null;
   databaseUrl: string | null;
   databaseExpectedUser: string | null;
-  aiGradingProviderMode: "mock" | "disabled";
+  aiGradingProviderMode: "mock" | "openai" | "disabled";
   aiGradingModelName: string;
+  aiGradingTimeoutMs: number;
+  aiGradingPromptVersion: string;
+  openaiApiKey: string | null;
+  openaiApiBaseUrl: string;
   aiWorkerBaseUrl: string | null;
   javaSecurityServiceUrl: string | null;
 };
@@ -20,7 +24,10 @@ export type ServerEnv = {
 const AUTH_ADAPTER_MODES: AuthAdapterMode[] = ["mock", "supabase"];
 const SESSION_TTL_DEFAULT_MINUTES = 120;
 const SESSION_TOKEN_PEPPER_DEV_FALLBACK = "dev-only-session-token-pepper";
-const AI_GRADING_PROVIDER_MODES = ["mock", "disabled"] as const;
+const AI_GRADING_PROVIDER_MODES = ["mock", "openai", "disabled"] as const;
+const AI_GRADING_TIMEOUT_DEFAULT_MS = 15000;
+const AI_GRADING_PROMPT_VERSION_DEFAULT = "essay-openai-v1";
+const OPENAI_API_BASE_URL_DEFAULT = "https://api.openai.com/v1";
 let cachedServerEnv: ServerEnv | null = null;
 
 function docGiaTriMoiTruong(key: string): string {
@@ -47,6 +54,16 @@ function docOriginTuyChon(key: string): string | null {
   }
 }
 
+function docUrlTuyChon(key: string, fallbackValue?: string): string {
+  const rawValue = docGiaTriMoiTruong(key) || fallbackValue || "";
+  try {
+    const parsed = new URL(rawValue);
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    throw new Error(`[env] ${key} phai la URL hop le.`);
+  }
+}
+
 function chuyenThanhSoDuong(key: string, fallbackValue: number): number {
   const raw = docGiaTriMoiTruong(key);
   if (!raw) {
@@ -70,13 +87,13 @@ function docCheDoAuth(): AuthAdapterMode {
   return rawMode as AuthAdapterMode;
 }
 
-function docCheDoAiGrading(): "mock" | "disabled" {
+function docCheDoAiGrading(): "mock" | "openai" | "disabled" {
   const rawMode = docGiaTriMoiTruong("AI_GRADING_PROVIDER_MODE") || "mock";
-  if (!AI_GRADING_PROVIDER_MODES.includes(rawMode as "mock" | "disabled")) {
+  if (!AI_GRADING_PROVIDER_MODES.includes(rawMode as "mock" | "openai" | "disabled")) {
     throw new Error(`[env] AI_GRADING_PROVIDER_MODE khong hop le: ${rawMode}.`);
   }
 
-  return rawMode as "mock" | "disabled";
+  return rawMode as "mock" | "openai" | "disabled";
 }
 
 function docSessionTokenPepper(appName: string): { value: string; usingFallback: boolean } {
@@ -106,6 +123,10 @@ export function layBienMoiTruongServer(): ServerEnv {
   const appName = docGiaTriMoiTruong("NEXT_PUBLIC_APP_NAME") || "web-bkt";
   const authAdapterMode = docCheDoAuth();
   const sessionTokenPepper = docSessionTokenPepper(appName);
+  const aiGradingProviderMode = docCheDoAiGrading();
+  const aiGradingModelName =
+    docGiaTriMoiTruong("AI_GRADING_MODEL_NAME") ||
+    (aiGradingProviderMode === "openai" ? "gpt-4o-mini" : "mock-essay-grader-v1");
 
   const env: ServerEnv = {
     appName,
@@ -121,8 +142,16 @@ export function layBienMoiTruongServer(): ServerEnv {
     supabaseServiceRoleKey: docGiaTriTuyChon("SUPABASE_SERVICE_ROLE_KEY"),
     databaseUrl: docGiaTriTuyChon("DATABASE_URL"),
     databaseExpectedUser: docGiaTriTuyChon("DATABASE_EXPECTED_USER"),
-    aiGradingProviderMode: docCheDoAiGrading(),
-    aiGradingModelName: docGiaTriMoiTruong("AI_GRADING_MODEL_NAME") || "mock-essay-grader-v1",
+    aiGradingProviderMode,
+    aiGradingModelName,
+    aiGradingTimeoutMs: chuyenThanhSoDuong(
+      "AI_GRADING_TIMEOUT_MS",
+      AI_GRADING_TIMEOUT_DEFAULT_MS,
+    ),
+    aiGradingPromptVersion:
+      docGiaTriMoiTruong("AI_GRADING_PROMPT_VERSION") || AI_GRADING_PROMPT_VERSION_DEFAULT,
+    openaiApiKey: docGiaTriTuyChon("OPENAI_API_KEY"),
+    openaiApiBaseUrl: docUrlTuyChon("OPENAI_API_BASE_URL", OPENAI_API_BASE_URL_DEFAULT),
     aiWorkerBaseUrl: docGiaTriTuyChon("AI_WORKER_BASE_URL"),
     javaSecurityServiceUrl: docGiaTriTuyChon("JAVA_SECURITY_SERVICE_URL"),
   };
@@ -140,6 +169,12 @@ export function layBienMoiTruongServer(): ServerEnv {
     }
   }
 
+  if (env.aiGradingProviderMode === "openai" && !env.openaiApiKey) {
+    throw new Error(
+      "[env] AI_GRADING_PROVIDER_MODE=openai can OPENAI_API_KEY de goi provider that o server.",
+    );
+  }
+
   cachedServerEnv = env;
   return env;
 }
@@ -150,4 +185,8 @@ export function coSupabaseDuDieuKien(env = layBienMoiTruongServer()): boolean {
 
 export function coSupabaseServiceRoleDuDieuKien(env = layBienMoiTruongServer()): boolean {
   return Boolean(env.supabaseUrl && env.supabaseServiceRoleKey);
+}
+
+export function datLaiBienMoiTruongServerChoTest(): void {
+  cachedServerEnv = null;
 }

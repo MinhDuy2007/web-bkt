@@ -2,6 +2,7 @@ import { AuthError } from "@/server/auth/errors";
 import { layPostgresPool } from "@/server/db/postgres-pool";
 import type {
   CreateAiEssaySuggestionInput,
+  CreateAiGradingUsageLogInput,
   CreateClassExamInput,
   CreateExamQuestionInput,
   DeleteExamQuestionInput,
@@ -20,8 +21,10 @@ import type {
 import { chamDiemNenChoCauHoi, lamTronDiemNen } from "@/server/exams/scoring";
 import {
   AI_GRADING_SUGGESTION_STATUSES,
+  AI_GRADING_USAGE_LOG_STATUSES,
   type AiEssayGradingSuggestionItemRecord,
   type AiEssayGradingSuggestionRecord,
+  type AiGradingUsageLogRecord,
   CLASS_EXAM_ANSWER_KEY_TYPES,
   CLASS_EXAM_ATTEMPT_STATUSES,
   CLASS_EXAM_QUESTION_TYPES,
@@ -192,6 +195,21 @@ type AiGradingSuggestionRow = {
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type AiGradingUsageLogRow = {
+  id: string;
+  answer_id: string;
+  suggestion_id: string | null;
+  actor_user_id: string | null;
+  provider_kind: string;
+  model_name: string;
+  prompt_version: string | null;
+  request_status: string;
+  error_code: string | null;
+  latency_ms: number | null;
+  metadata_json: Record<string, unknown> | null;
+  created_at: string;
 };
 
 function docGiaTriEnum<T extends readonly string[]>(
@@ -365,6 +383,27 @@ function mapAiGradingSuggestionRow(row: AiGradingSuggestionRow): AiEssayGradingS
     reviewedAt: row.reviewed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapAiGradingUsageLogRow(row: AiGradingUsageLogRow): AiGradingUsageLogRecord {
+  return {
+    id: row.id,
+    answerId: row.answer_id,
+    suggestionId: row.suggestion_id,
+    actorUserId: row.actor_user_id,
+    providerKind: row.provider_kind,
+    modelName: row.model_name,
+    promptVersion: row.prompt_version,
+    requestStatus: docGiaTriEnum(
+      row.request_status,
+      AI_GRADING_USAGE_LOG_STATUSES,
+      "ai_grading_usage_logs.request_status",
+    ),
+    errorCode: row.error_code,
+    latencyMs: row.latency_ms,
+    metadataJson: docJsonObject(row.metadata_json, "ai_grading_usage_logs.metadata_json"),
+    createdAt: row.created_at,
   };
 }
 
@@ -2273,6 +2312,127 @@ export function taoPostgresExamRepository(): ExamRepository {
           throw error;
         }
         taoLoiPostgresExam("nop bai va cham diem nen cho attempt", error);
+      } finally {
+        client.release();
+      }
+    },
+
+    async createAiGradingUsageLog(
+      input: CreateAiGradingUsageLogInput,
+    ): Promise<AiGradingUsageLogRecord> {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+
+        if (input.actorUserId) {
+          await batBuocCauEssayTonTaiVaCoQuyenCham(
+            client,
+            input.answerId,
+            input.actorUserId,
+            true,
+          );
+        } else {
+          const answerCheck = await client.query<EssayManualGradingRow>(
+            `select
+               aa.*,
+               q.class_exam_id as question_class_exam_id,
+               q.question_order,
+               q.question_type,
+               q.prompt_text,
+               q.points,
+               q.metadata_json,
+               q.created_by_user_id,
+               q.created_at as question_created_at,
+               q.updated_at as question_updated_at,
+               cea.user_id as attempt_user_id,
+               cea.status as attempt_status,
+               cea.started_at as attempt_started_at,
+               cea.submitted_at as attempt_submitted_at,
+               cea.auto_graded_score as attempt_auto_graded_score,
+               cea.max_auto_graded_score as attempt_max_auto_graded_score,
+               cea.final_score as attempt_final_score,
+               cea.pending_manual_grading_count as attempt_pending_manual_grading_count,
+               cea.created_at as attempt_created_at,
+               cea.updated_at as attempt_updated_at,
+               ua.email as student_email,
+               up.display_name as student_display_name
+             from public.class_exam_attempt_answers aa
+             inner join public.exam_questions q on q.id = aa.question_id
+             inner join public.class_exam_attempts cea on cea.id = aa.attempt_id
+             left join public.user_accounts ua on ua.id = cea.user_id
+             left join public.user_profiles up on up.user_id = cea.user_id
+             where aa.id = $1
+             limit 1
+             for update of aa, cea`,
+            [input.answerId],
+          );
+          if (!answerCheck.rows[0]) {
+            throw new AuthError({
+              code: "EXAM_ATTEMPT_ANSWER_NOT_FOUND",
+              message: "Khong tim thay cau tra loi essay de ghi usage log AI.",
+              statusCode: 404,
+            });
+          }
+        }
+
+        if (input.suggestionId) {
+          if (input.actorUserId) {
+            await batBuocGoiYChamAITonTaiVaCoQuyen(
+              client,
+              input.suggestionId,
+              input.actorUserId,
+              true,
+            );
+          }
+        }
+
+        const result = await client.query<AiGradingUsageLogRow>(
+          `insert into public.ai_grading_usage_logs (
+             answer_id,
+             suggestion_id,
+             actor_user_id,
+             provider_kind,
+             model_name,
+             prompt_version,
+             request_status,
+             error_code,
+             latency_ms,
+             metadata_json,
+             created_at
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)
+           returning *`,
+          [
+            input.answerId,
+            input.suggestionId,
+            input.actorUserId,
+            input.providerKind,
+            input.modelName,
+            input.promptVersion,
+            input.requestStatus,
+            input.errorCode,
+            input.latencyMs,
+            JSON.stringify(input.metadataJson),
+            input.createdAt,
+          ],
+        );
+        const row = result.rows[0];
+        if (!row) {
+          throw new AuthError({
+            code: "POSTGRES_DATA_INVALID",
+            message: "[postgres-exam] Khong ghi duoc usage log AI.",
+            statusCode: 500,
+          });
+        }
+
+        await client.query("commit");
+        return mapAiGradingUsageLogRow(row);
+      } catch (error) {
+        await rollbackAnToan(client);
+        if (error instanceof AuthError) {
+          throw error;
+        }
+        taoLoiPostgresExam("ghi usage log AI", error);
       } finally {
         client.release();
       }
